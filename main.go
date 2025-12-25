@@ -33,6 +33,7 @@ type Settings struct {
 	trustedPubKeys    []nostr.PubKey
 	MediaAlertAPIKey    string `envconfig:"MEDIA_ALERT_API_KEY"`
 	ErrorLogPath        string `envconfig:"ERROR_LOG_PATH" default:"/tmp/njump-errors.jsonl"`
+	ClientsConfigPath   string `envconfig:"CLIENTS_CONFIG_PATH"`
 }
 
 //go:embed static/*
@@ -86,6 +87,9 @@ func main() {
 			sys.MetadataRelays.URLs = relayConfig.Profiles
 		}
 	}
+
+	// load custom clients configuration if provided
+	loadClientsConfig()
 
 	// if we're in tailwind debug mode, initialize the runtime tailwind stuff
 	if s.TailwindDebug {

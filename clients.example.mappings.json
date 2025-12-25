@@ -1,0 +1,201 @@
+{
+  "kind_mappings": [
+    {
+      "kind": -1,
+      "clients": [
+        "native",
+        "nostur",
+        "yakihonneAndroid",
+        "yakihonneIOS",
+        "jumble",
+        "coracle",
+        "iris",
+        "default-web"
+      ]
+    },
+    {
+      "kind": 1,
+      "clients": [
+        "native",
+        "damus",
+        "nos",
+        "nostur",
+        "primalIOS",
+        "voyage",
+        "primalAndroid",
+        "yakihonneAndroid",
+        "amethyst",
+        "nosotros",
+        "nosta",
+        "phoenix",
+        "primalWeb",
+        "iris",
+        "default-web"
+      ]
+    },
+    {
+      "kind": 6,
+      "clients": [
+        "native",
+        "damus",
+        "nos",
+        "nostur",
+        "primalIOS",
+        "voyage",
+        "primalAndroid",
+        "yakihonneAndroid",
+        "amethyst",
+        "nosotros",
+        "nosta",
+        "phoenix",
+        "primalWeb",
+        "iris",
+        "default-web"
+      ]
+    },
+    {
+      "kind": 20,
+      "clients": [
+        "native",
+        "voyage",
+        "primalAndroid",
+        "primalIOS",
+        "nosotros",
+        "jumble",
+        "olasWeb",
+        "coracle",
+        "default-web"
+      ]
+    },
+    {
+      "kind": 0,
+      "clients": [
+        "native",
+        "nos",
+        "damus",
+        "nostur",
+        "primalIOS",
+        "yakihonneIOS",
+        "voyage",
+        "yakihonneAndroid",
+        "yanaAndroid",
+        "primalAndroid",
+        "nosotros",
+        "jumble",
+        "nosta",
+        "coracle",
+        "phoenix",
+        "nostter",
+        "nostrudel",
+        "primalWeb",
+        "iris",
+        "default-web"
+      ]
+    },
+    {
+      "kind": 30023,
+      "clients": [
+        "native",
+        "damus",
+        "nos",
+        "nostur",
+        "yakihonneIOS",
+        "yakihonneAndroid",
+        "amethyst",
+        "yakihonne",
+        "lumilumi",
+        "coracle",
+        "habla",
+        "default-web"
+      ]
+    },
+    {
+      "kind": 30024,
+      "clients": [
+        "native",
+        "damus",
+        "nos",
+        "nostur",
+        "yakihonneIOS",
+        "yakihonneAndroid",
+        "amethyst",
+        "yakihonne",
+        "lumilumi",
+        "coracle",
+        "habla",
+        "default-web"
+      ]
+    },
+    {
+      "kind": 1063,
+      "clients": [
+        "native",
+        "amethyst",
+        "lumilumi",
+        "phoenix",
+        "coracle",
+        "nostrudel",
+        "default-web"
+      ]
+    },
+    {
+      "kind": 9802,
+      "clients": [
+        "coracle",
+        "nostrudel",
+        "lumilumi",
+        "jumble",
+        "default-web"
+      ]
+    },
+    {
+      "kind": 30311,
+      "clients": [
+        "native",
+        "amethyst",
+        "nostur",
+        "lumilumi",
+        "nostrudel",
+        "default-web"
+      ]
+    },
+    {
+      "kind": 30818,
+      "clients": [
+        "native",
+        "default-web"
+      ]
+    },
+    {
+      "kind": 31922,
+      "clients": [
+        "native",
+        "coracle",
+        "default-web"
+      ]
+    },
+    {
+      "kind": 31923,
+      "clients": [
+        "native",
+        "coracle",
+        "default-web"
+      ]
+    }
+  ],
+  "default": [
+    "native",
+    "damus",
+    "nos",
+    "nostur",
+    "primalIOS",
+    "voyage",
+    "yakihonneAndroid",
+    "amethyst",
+    "nosta",
+    "phoenix",
+    "primalWeb",
+    "iris",
+    "default-web"
+  ]
+}

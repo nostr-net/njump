@@ -1,0 +1,119 @@
+{
+  "clients": {
+    "native": {
+      "name": "Your default app",
+      "base": "nostr:{code}",
+      "platform": "native"
+    },
+    "default-web": {
+      "name": "Your default web app",
+      "base": "web+nostr:{code}",
+      "platform": "web"
+    },
+    "nosotros": {
+      "name": "Nosotros",
+      "base": "https://dev.nosotros.app/{code}",
+      "platform": "web"
+    },
+    "nosta": {
+      "name": "Nosta",
+      "base": "https://nosta.me/{code}",
+      "platform": "web"
+    },
+    "phoenix": {
+      "name": "Phoenix",
+      "base": "https://phoenix.social/{code}",
+      "platform": "web"
+    },
+    "olasWeb": {
+      "name": "Olas",
+      "base": "https://olas.app/e/{code}",
+      "platform": "web"
+    },
+    "primalWeb": {
+      "name": "Primal",
+      "base": "https://primal.net/e/{code}",
+      "platform": "web"
+    },
+    "nostrudel": {
+      "name": "Nostrudel",
+      "base": "https://nostrudel.ninja/l/{code}",
+      "platform": "web"
+    },
+    "nostter": {
+      "name": "Nostter",
+      "base": "https://nostter.app/{code}",
+      "platform": "web"
+    },
+    "jumble": {
+      "name": "Jumble",
+      "base": "https://jumble.social/{code}",
+      "platform": "web"
+    },
+    "coracle": {
+      "name": "Coracle",
+      "base": "https://coracle.social/{code}",
+      "platform": "web"
+    },
+    "iris": {
+      "name": "Iris",
+      "base": "https://iris.to/{code}",
+      "platform": "web"
+    },
+    "lumilumi": {
+      "name": "Lumilumi",
+      "base": "https://lumilumi.app/{code}",
+      "platform": "web"
+    },
+    "yakihonne": {
+      "name": "YakiHonne",
+      "base": "https://yakihonne.com/{code}",
+      "platform": "web"
+    },
+    "damus": {
+      "name": "Damus",
+      "base": "damus:{code}",
+      "platform": "ios"
+    },
+    "nos": {
+      "name": "Nos",
+      "base": "nos:{code}",
+      "platform": "ios"
+    },
+    "nostur": {
+      "name": "Nostur",
+      "base": "nostur:{code}",
+      "platform": "ios"
+    },
+    "primalIOS": {
+      "name": "Primal",
+      "base": "primal:{code}",
+      "platform": "ios"
+    },
+    "voyage": {
+      "name": "Voyage",
+      "base": "intent:{code}#Intent;scheme=nostr;package=com.dluvian.voyage;end",
+      "platform": "android"
+    },
+    "primalAndroid": {
+      "name": "Primal",
+      "base": "intent:{code}#Intent;scheme=nostr;package=net.primal.android;end",
+      "platform": "android"
+    },
+    "yakihonneAndroid": {
+      "name": "YakiHonne",
+      "base": "intent:{code}#Intent;scheme=nostr;package=com.yakihonne.yakihonne;end",
+      "platform": "android"
+    },
+    "amethyst": {
+      "name": "Amethyst",
+      "base": "intent:{code}#Intent;scheme=nostr;package=com.vitorpamplona.amethyst;end",
+      "platform": "android"
+    },
+    "yanaAndroid": {
+      "name": "Yana",
+      "base": "intent:{code}#Intent;scheme=nostr;package=yana.nostr;end",
+      "platform": "android"
+    }
+  }
+}
