@@ -176,13 +176,13 @@ func main() {
 	sub.HandleFunc("/{$}", renderHomepage)
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		agentBlock(
-			loggingMiddleware(
-				queueMiddleware(
-					sub.ServeHTTP,
-				),
+		// agentBlock(
+		loggingMiddleware(
+			queueMiddleware(
+				sub.ServeHTTP,
 			),
 		)(w, r)
+		// )(w, r)
 	})
 
 	corsH := cors.Default()
