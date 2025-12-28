@@ -177,11 +177,9 @@ func main() {
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		agentBlock(
-			ipBlock(
-				loggingMiddleware(
-					queueMiddleware(
-						sub.ServeHTTP,
-					),
+			loggingMiddleware(
+				queueMiddleware(
+					sub.ServeHTTP,
 				),
 			),
 		)(w, r)
