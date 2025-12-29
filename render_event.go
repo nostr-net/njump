@@ -577,6 +577,27 @@ func renderEvent(w http.ResponseWriter, r *http.Request) {
 
 		component = wikiEventTemplate(params, isEmbed)
 
+	case FollowSet:
+		contactCount := len(data.Kind3000Metadata.Contacts)
+		opengraph.Superscript = fmt.Sprintf("follow set with %d contacts", contactCount)
+		opengraph.Subscript = "by " + data.event.author.ShortName()
+
+		params := FollowSetPageParams{
+			BaseEventPageParams: baseEventPageParams,
+			OpenGraphParams:     opengraph,
+			HeadParams: HeadParams{
+				IsProfile:   false,
+				NaddrNaked:  data.naddrNaked,
+				NeventNaked: data.neventNaked,
+			},
+			FollowSet: data.Kind3000Metadata,
+			Details:   detailsData,
+			Content:   basicFormatting(data.content, false, false, false),
+			Clients:   generateClientList(int(data.event.Kind), data.naddr),
+		}
+
+		component = followSetTemplate(params, isEmbed)
+
 	case Highlight:
 		if data.Kind9802Metadata.Comment == "" {
 			opengraph.Superscript = data.Kind9802Metadata.SourceURL

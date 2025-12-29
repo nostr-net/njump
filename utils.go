@@ -78,7 +78,7 @@ var kindNames = map[nostr.Kind]string{
 	23194: "Wallet Request",
 	23195: "Wallet Response",
 	24133: "Nostr Connect",
-	30000: "Categorized People List",
+	30000: "Categorized Follow Set",
 	30001: "Categorized Bookmark List",
 	30008: "Profile Badges",
 	30009: "Badge Definition",

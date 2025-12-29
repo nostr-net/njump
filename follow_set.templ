@@ -1,0 +1,103 @@
+package main
+
+import "fiatjaf.com/nostr"
+
+type FollowSetPageParams struct {
+	BaseEventPageParams
+	OpenGraphParams
+	HeadParams
+	Details   DetailsParams
+	Content   string
+	FollowSet Kind3000Metadata
+	Clients   []ClientReference
+}
+
+type Kind3000Metadata struct {
+	Title       string
+	Description string
+	Contacts    []ContactInfo
+}
+
+type ContactInfo struct {
+	PubKey  nostr.PubKey
+	Name    string
+	About   string
+	Picture string
+	Npub    string
+}
+
+templ followSetInnerBlock(params FollowSetPageParams) {
+	<h1 class="flex text-2xl items-center">
+		<div class="inline-block px-2 mr-2 text-base bg-strongpink text-white rounded-md">Follow Set <span class="text-base">＞</span></div>
+		<div class="inline-block">{ params.FollowSet.Title }</div>
+	</h1>
+	if params.FollowSet.Description != "" {
+		<div dir="auto" class="mt-4 mb-6 leading-5">
+			@templ.Raw(params.FollowSet.Description)
+		</div>
+	}
+	<!-- contacts list -->
+	<div class="mt-6 space-y-4">
+		for _, contact := range params.FollowSet.Contacts {
+			<a
+				href={ templ.URL("/" + contact.Npub) }
+				class="flex items-center gap-4 px-4 py-4 border border-neutral-200 dark:border-neutral-600 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors no-underline"
+			>
+				if contact.Picture != "" {
+					<img
+						src={ contact.Picture }
+						alt={ contact.Name }
+						class="w-12 h-12 my-0 rounded-full object-cover"
+						onerror="this.style.display='none'"
+					/>
+				} else {
+					<div class="w-12 h-12 rounded-full bg-neutral-300 flex items-center justify-center">
+						{ string([]rune(contact.Name)[0:1]) }
+					</div>
+				}
+				<div class="flex-1 min-w-0">
+					<div
+						class="text-lg font-medium"
+					>
+						if contact.Name != "" {
+							{ contact.Name }
+						} else {
+							{ contact.Npub[:16] }...
+						}
+					</div>
+					<div class="text-sm truncate">
+						{ contact.Npub }
+					</div>
+					if contact.About != "" {
+						<div class="mt-1 line-clamp-2">
+							{ contact.About }
+						</div>
+					}
+				</div>
+			</a>
+		}
+	</div>
+}
+
+templ followSetTemplate(params FollowSetPageParams, isEmbed bool) {
+	<!DOCTYPE html>
+	if isEmbed {
+		@embeddedPageTemplate(
+			params.Event,
+			params.NeventNaked,
+		) {
+			@followSetInnerBlock(params)
+		}
+	} else {
+		@eventPageTemplate(
+			"Follow Set - "+params.FollowSet.Title,
+			params.OpenGraphParams,
+			params.HeadParams,
+			params.Clients,
+			params.Details,
+			params.Event,
+		) {
+			@followSetInnerBlock(params)
+		}
+	}
+}

@@ -40,6 +40,7 @@ type Data struct {
 	kind30311Metadata        *Kind30311Metadata
 	kind31922Or31923Metadata *Kind31922Or31923Metadata
 	Kind30818Metadata        Kind30818Metadata
+	Kind3000Metadata         Kind3000Metadata
 	Kind9802Metadata         Kind9802Metadata
 }
 
@@ -137,6 +138,43 @@ func grabData(ctx context.Context, code string) (Data, error) {
 			return ""
 		}()
 		data.content = event.Content
+	case 30000:
+		data.templateId = FollowSet
+		data.Kind3000Metadata.Title = event.Tags.GetD()
+		if data.Kind3000Metadata.Title == "" {
+			data.Kind3000Metadata.Title = "Follow Set"
+		}
+		if titleTag := event.Tags.Find("title"); titleTag != nil {
+			data.Kind3000Metadata.Title = titleTag[1]
+		}
+		if descTag := event.Tags.Find("description"); descTag != nil {
+			data.Kind3000Metadata.Description = descTag[1]
+		}
+		data.content = event.Content
+
+		// Extract contacts from p-tags
+		contacts := make([]ContactInfo, 0)
+		maxContacts := 50 // Limit to avoid performance issues
+		count := 0
+		for tag := range event.Tags.FindAll("p") {
+			if count >= maxContacts {
+				break
+			}
+			if len(tag) >= 2 {
+				if pubkey, err := nostr.PubKeyFromHex(tag[1]); err == nil {
+					profile := sys.FetchProfileMetadata(ctx, pubkey)
+					contacts = append(contacts, ContactInfo{
+						PubKey:  pubkey,
+						Name:    profile.Name,
+						About:   profile.About,
+						Picture: profile.Picture,
+						Npub:    nip19.EncodeNpub(pubkey),
+					})
+					count++
+				}
+			}
+		}
+		data.Kind3000Metadata.Contacts = contacts
 	case 9802:
 		data.templateId = Highlight
 		data.content = event.Content
