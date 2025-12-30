@@ -25,6 +25,7 @@ const (
 	CalendarEvent
 	WikiEvent
 	FollowSet
+	StarterPack
 	Highlight
 	Other
 )

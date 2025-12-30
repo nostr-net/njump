@@ -88,6 +88,7 @@ var kindNames = map[nostr.Kind]string{
 	30078: "Application-specific Data",
 	30818: "Wiki article",
 	30311: "Live Event",
+	39089: "Starter Pack",
 }
 
 var kindNIPs = map[nostr.Kind]string{
@@ -131,6 +132,7 @@ var kindNIPs = map[nostr.Kind]string{
 	30078: "78",
 	30818: "54",
 	30311: "53",
+	39089: "51",
 }
 
 type Style string
