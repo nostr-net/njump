@@ -67,11 +67,16 @@ func renderProfile(ctx context.Context, r *http.Request, w http.ResponseWriter, 
 	}
 
 	var lastNotes []EnhancedEvent
+	var justFetched bool
 	if !isEmbed {
-		lastNotes, _ = authorLastNotes(ctx, profile.PubKey)
+		lastNotes, justFetched = authorLastNotes(ctx, profile.PubKey)
 	}
 
-	w.Header().Set("Cache-Control", "public, s-maxage=604800, max-age=604800, stale-while-revalidate=31536000")
+	if justFetched {
+		w.Header().Set("Cache-Control", "public, s-maxage=60, max-age=60")
+	} else {
+		w.Header().Set("Cache-Control", "public, s-maxage=604800, max-age=604800, stale-while-revalidate=31536000")
+	}
 
 	var err error
 	if isSitemap {
