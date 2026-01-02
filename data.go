@@ -204,7 +204,7 @@ func grabData(ctx context.Context, code string) (Data, error) {
 		}
 
 		if comment := event.Tags.Find("comment"); comment != nil {
-			data.Kind9802Metadata.Comment = basicFormatting(comment[1], false, false, false)
+			data.Kind9802Metadata.Comment = basicFormatting(ctx, comment[1], false, false, false)
 		}
 
 	default:

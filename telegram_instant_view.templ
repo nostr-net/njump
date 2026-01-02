@@ -73,7 +73,7 @@ templ telegramInstantViewTemplate(params TelegramInstantViewParams) {
 						</a>
 					</span>
 				} else {
-					@templ.Raw(replaceNostrURLsWithHTMLTags(nostrNoteNeventMatcher, "nostr:"+nip19.EncodePointer(params.Parent)))
+					@templ.Raw(replaceNostrURLsWithHTMLTags(ctx, nostrNoteNeventMatcher, "nostr:"+nip19.EncodePointer(params.Parent)))
 				}
 			</aside>
 		}

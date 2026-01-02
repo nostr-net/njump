@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	stdhtml "html"
 	"io"
 	"strings"
@@ -53,7 +54,7 @@ var tgivmdrenderer = html.NewRenderer(html.RendererOptions{
 	},
 })
 
-func mdToHTML(md string, usingTelegramInstantView bool) string {
+func mdToHTML(ctx context.Context, md string, usingTelegramInstantView bool) string {
 	md = strings.ReplaceAll(md, "\u00A0", " ")
 
 	// create markdown parser with extensions
@@ -80,7 +81,7 @@ func mdToHTML(md string, usingTelegramInstantView bool) string {
 	output = sanitizeXSS(output)
 
 	// nostr urls
-	output = replaceNostrURLsWithHTMLTags(nostrEveryMatcher, output)
+	output = replaceNostrURLsWithHTMLTags(ctx, nostrEveryMatcher, output)
 
 	return output
 }

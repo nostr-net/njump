@@ -47,7 +47,7 @@ templ eventPageTemplate(
 								} else {
 									in reply to
 									<span class="text-strongpink">
-										@templ.Raw(replaceNostrURLsWithHTMLTags(nostrNoteNeventMatcher, "nostr:"+nip19.EncodePointer(parent)))
+										@templ.Raw(replaceNostrURLsWithHTMLTags(ctx, nostrNoteNeventMatcher, "nostr:"+nip19.EncodePointer(parent)))
 									</span>
 								}
 							}
