@@ -44,7 +44,19 @@ func renderProfile(ctx context.Context, r *http.Request, w http.ResponseWriter, 
 		return
 	}
 
-	profile := sys.FetchProfileMetadata(ctx, pp.PublicKey)
+	// Give metadata fetch only 5 seconds to avoid timing out the whole page
+	profileCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	profile := sys.FetchProfileMetadata(profileCtx, pp.PublicKey)
+
+	// Check if profile metadata is missing
+	profileMissing := profile.Event == nil
+	if profileMissing {
+		// Trigger background fetch to populate cache for next request
+		go sys.FetchProfileMetadata(context.Background(), pp.PublicKey)
+	}
+
 	if isMaliciousBridged(profile) {
 		deleteAllEventsFromPubKey(pp.PublicKey)
 		w.Header().Set("Cache-Control", "public, immutable, s-maxage=604800, max-age=604800")
@@ -72,7 +84,8 @@ func renderProfile(ctx context.Context, r *http.Request, w http.ResponseWriter, 
 		lastNotes, justFetched = authorLastNotes(ctx, profile.PubKey)
 	}
 
-	if justFetched {
+	// Use short cache if notes were just fetched or profile metadata is missing
+	if justFetched || profileMissing {
 		w.Header().Set("Cache-Control", "public, s-maxage=60, max-age=60")
 	} else {
 		w.Header().Set("Cache-Control", "public, s-maxage=43200, max-age=43200, stale-while-revalidate=31536000")
