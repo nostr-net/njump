@@ -230,8 +230,20 @@ func replaceNostrURLsWithHTMLTags(ctx context.Context, matcher *regexp.Regexp, i
 		}
 	}
 
-	// in the second time now that we got all the names we actually perform replacement
-	wg.Wait()
+	// Wait for all goroutines to complete or context to be cancelled
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// All goroutines completed successfully
+	case <-ctx.Done():
+		// Context cancelled, return with partial results
+	}
+
 	return matcher.ReplaceAllStringFunc(input, func(match string) string {
 		nip19 := match[len("nostr:"):]
 		firstChars := nip19[:8]
@@ -343,8 +355,20 @@ func renderQuotesAsHTML(ctx context.Context, input string, usingTelegramInstantV
 		}()
 	}
 
-	// in the second time now that we got all the quoted events we actually perform replacement
-	wg.Wait()
+	// Wait for all goroutines to complete or context to be cancelled
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// All goroutines completed successfully
+	case <-ctx.Done():
+		// Context cancelled, return with partial results
+	}
+
 	return nostrNoteNeventMatcher.ReplaceAllStringFunc(input, func(match string) string {
 		quote, ok := quotes.Load(match)
 		if !ok {
