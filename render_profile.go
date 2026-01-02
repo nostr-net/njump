@@ -75,7 +75,7 @@ func renderProfile(ctx context.Context, r *http.Request, w http.ResponseWriter, 
 	if justFetched {
 		w.Header().Set("Cache-Control", "public, s-maxage=60, max-age=60")
 	} else {
-		w.Header().Set("Cache-Control", "public, s-maxage=604800, max-age=604800, stale-while-revalidate=31536000")
+		w.Header().Set("Cache-Control", "public, s-maxage=43200, max-age=43200, stale-while-revalidate=31536000")
 	}
 
 	var err error
