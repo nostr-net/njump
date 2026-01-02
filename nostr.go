@@ -207,8 +207,6 @@ func getMetadata(ctx context.Context, event nostr.Event) sdk.ProfileMetadata {
 func authorLastNotes(ctx context.Context, pubkey nostr.PubKey) (lastNotes []EnhancedEvent, justFetched bool) {
 	limit := 100
 
-	go sys.FetchProfileMetadata(ctx, pubkey) // fetch this before so the cache is filled for later
-
 	filter := nostr.Filter{
 		Kinds:   []nostr.Kind{nostr.KindTextNote},
 		Authors: []nostr.PubKey{pubkey},
