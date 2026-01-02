@@ -178,9 +178,11 @@ func main() {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		// agentBlock(
 		loggingMiddleware(
-			// queueMiddleware(
-			sub.ServeHTTP,
-			// ),
+			timeoutMiddleware(
+				// queueMiddleware(
+				sub.ServeHTTP,
+				// ),
+			),
 		)(w, r)
 		// )(w, r)
 	})
