@@ -237,15 +237,15 @@ func authorLastNotes(ctx context.Context, pubkey nostr.PubKey) (lastNotes []Enha
 		justFetched = true
 
 		go func() {
-			goctx, cancel := context.WithTimeout(ctx, time.Second*15)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 			defer cancel()
 
-			relays := sys.FetchOutboxRelays(goctx, pubkey, 3)
+			relays := sys.FetchOutboxRelays(ctx, pubkey, 3)
 			for len(relays) < 3 {
 				relays = appendUnique(relays, sys.FallbackRelays.Next())
 			}
 
-			ch := sys.Pool.FetchMany(goctx, relays, filter, nostr.SubscriptionOptions{Label: "authorlast"})
+			ch := sys.Pool.FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{Label: "authorlast"})
 		out:
 			for {
 				select {
@@ -254,7 +254,7 @@ func authorLastNotes(ctx context.Context, pubkey nostr.PubKey) (lastNotes []Enha
 						break out
 					}
 
-					ee := NewEnhancedEvent(goctx, ie.Event)
+					ee := NewEnhancedEvent(ctx, ie.Event)
 					ee.relays = appendUnique([]string{ie.Relay.URL}, sys.GetEventRelays(ie.Event.ID)...)
 					lastNotes = append(lastNotes, ee)
 
@@ -262,7 +262,7 @@ func authorLastNotes(ctx context.Context, pubkey nostr.PubKey) (lastNotes []Enha
 
 					// track this only the first time this event is downloaded for the profile page so we keep these fresh
 					sys.TrackEventAccessTime(evt.ID)
-				case <-goctx.Done():
+				case <-ctx.Done():
 					break out
 				}
 			}

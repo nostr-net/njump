@@ -126,12 +126,9 @@ func (ee EnhancedEvent) RssTitle() string {
 }
 
 func (ee EnhancedEvent) RssContent() string {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-
 	content := ee.Event.Content
-	content = basicFormatting(ctx, html.EscapeString(content), true, false, false)
-	content = renderQuotesAsHTML(ctx, content, false)
+	content = basicFormatting(html.EscapeString(content), true, false, false)
+	content = renderQuotesAsHTML(context.Background(), content, false)
 	if parent := ee.getParent(); parent != nil {
 		if external, ok := parent.(nip73.ExternalPointer); ok {
 			content = "In reply to <a target='_blank' href='" + external.Thing + "'>" + external.Thing + "</a><br/>_________________________<br/><br/>" + content

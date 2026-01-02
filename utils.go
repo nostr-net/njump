@@ -209,7 +209,7 @@ func replaceURLsWithTags(input string, imageReplacementTemplate, videoReplacemen
 	})
 }
 
-func replaceNostrURLsWithHTMLTags(ctx context.Context, matcher *regexp.Regexp, input string) string {
+func replaceNostrURLsWithHTMLTags(matcher *regexp.Regexp, input string) string {
 	// match and replace npup1, nprofile1, note1, nevent1, etc
 	names := xsync.NewMapOf[string, string]()
 	wg := sync.WaitGroup{}
@@ -219,11 +219,11 @@ func replaceNostrURLsWithHTMLTags(ctx context.Context, matcher *regexp.Regexp, i
 		nip19 := match[len("nostr:"):]
 
 		if strings.HasPrefix(nip19, "npub1") || strings.HasPrefix(nip19, "nprofile1") {
-			goctx, cancel := context.WithTimeout(ctx, time.Second*4)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*4)
 			defer cancel()
 			wg.Add(1)
 			go func() {
-				name, _ := getNameFromNip19(goctx, nip19)
+				name, _ := getNameFromNip19(ctx, nip19)
 				names.Store(nip19, name)
 				wg.Done()
 			}()
@@ -332,19 +332,19 @@ func renderQuotesAsHTML(ctx context.Context, input string, usingTelegramInstantV
 	for _, submatches := range nostrNoteNeventMatcher.FindAllStringSubmatch(input, len(input)+1) {
 		nip19 := submatches[1]
 
-		goctx, cancel := context.WithTimeout(ctx, time.Second*4)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*4)
 		defer cancel()
 		wg.Add(1)
 		go func() {
-			event, _ := getEvent(goctx, nip19)
+			event, _ := getEvent(ctx, nip19)
 			if event != nil {
-				quotedEvent := basicFormatting(goctx, submatches[0], false, usingTelegramInstantView, false)
+				quotedEvent := basicFormatting(submatches[0], false, usingTelegramInstantView, false)
 
 				var content string
 				if event.Kind == 30023 {
-					content = mdToHTML(goctx, event.Content, usingTelegramInstantView)
+					content = mdToHTML(event.Content, usingTelegramInstantView)
 				} else {
-					content = basicFormatting(goctx, event.Content, false, usingTelegramInstantView, false)
+					content = basicFormatting(event.Content, false, usingTelegramInstantView, false)
 				}
 				content = fmt.Sprintf(
 					`<blockquote class="border-l-05rem border-l-strongpink border-solid"><div class="-ml-4 bg-gradient-to-r from-gray-100 dark:from-zinc-800 to-transparent mr-0 mt-0 mb-4 pl-4 pr-2 py-2">quoting %s </div> %s </blockquote>`, quotedEvent, content)
@@ -387,7 +387,7 @@ func linkQuotes(input string) string {
 	})
 }
 
-func basicFormatting(ctx context.Context, input string, skipNostrEventLinks bool, usingTelegramInstantView bool, skipLinks bool) string {
+func basicFormatting(input string, skipNostrEventLinks bool, usingTelegramInstantView bool, skipLinks bool) string {
 	nostrMatcher := nostrEveryMatcher
 	if skipNostrEventLinks {
 		nostrMatcher = nostrNpubNprofileMatcher
@@ -406,7 +406,7 @@ func basicFormatting(ctx context.Context, input string, skipNostrEventLinks bool
 	lines := strings.Split(input, "\n")
 	for i, line := range lines {
 		line = replaceURLsWithTags(line, imageReplacementTemplate, videoReplacementTemplate, skipLinks)
-		line = replaceNostrURLsWithHTMLTags(ctx, nostrMatcher, line)
+		line = replaceNostrURLsWithHTMLTags(nostrMatcher, line)
 		lines[i] = line
 	}
 	return strings.Join(lines, "<br/>")

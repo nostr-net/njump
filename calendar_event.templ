@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	_ "embed"
 	"fiatjaf.com/nostr/nip19"
 	"fiatjaf.com/nostr/nip52"
@@ -28,11 +27,11 @@ type Kind31922Or31923Metadata struct {
 	nip52.CalendarEvent
 }
 
-func formatParticipants(ctx context.Context, participants []nip52.Participant) string {
+func formatParticipants(participants []nip52.Participant) string {
 	var list = make([]string, 0)
 	for _, p := range participants {
 		nreplace := nip19.EncodeNpub(p.PubKey)
-		nreplace = replaceNostrURLsWithHTMLTags(ctx, nostrNpubNprofileMatcher, "nostr:"+nreplace)
+		nreplace = replaceNostrURLsWithHTMLTags(nostrNpubNprofileMatcher, "nostr:"+nreplace)
 		if p.Role != "" {
 			nreplace = nreplace + " as " + strings.ToTitle(p.Role)
 		}
@@ -87,7 +86,7 @@ templ calendarEventInnerBlock(params CalendarPageParams) {
 		if len(params.CalendarEvent.Participants) != 0 {
 			<div class="pb-4">
 				<span class="font-medium">People</span>:
-				@templ.Raw(formatParticipants(ctx, params.CalendarEvent.Participants))
+				@templ.Raw(formatParticipants(params.CalendarEvent.Participants))
 			</div>
 		}
 		if params.CalendarEvent.Image != "" {

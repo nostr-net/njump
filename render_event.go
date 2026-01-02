@@ -263,12 +263,12 @@ func renderEvent(w http.ResponseWriter, r *http.Request) {
 	if data.event.Kind == 30023 || data.event.Kind == 30024 {
 		// Remove duplicate title inside the body
 		data.content = strings.ReplaceAll(data.content, "# "+data.event.subject, "")
-		data.content = mdToHTML(ctx, data.content, data.templateId == TelegramInstantView)
+		data.content = mdToHTML(data.content, data.templateId == TelegramInstantView)
 	} else if data.event.Kind == 30818 {
 		data.content = asciidocToHTML(data.content)
 	} else {
 		// first we run basicFormatting, which turns URLs into their appropriate HTML tags
-		data.content = basicFormatting(ctx, html.EscapeString(data.content), true, false, false)
+		data.content = basicFormatting(html.EscapeString(data.content), true, false, false)
 		// then we render quotes as HTML, which will also apply basicFormatting to all the internal quotes
 		data.content = renderQuotesAsHTML(ctx, data.content, data.templateId == TelegramInstantView)
 		// we must do this because inside <blockquotes> we must treat <img>s differently when telegram_instant_view
