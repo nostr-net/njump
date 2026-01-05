@@ -86,9 +86,9 @@ func renderProfile(ctx context.Context, r *http.Request, w http.ResponseWriter, 
 
 	// Use short cache if notes were just fetched or profile metadata is missing
 	if justFetched || profileMissing {
-		w.Header().Set("Cache-Control", "public, s-maxage=60, max-age=60")
+		w.Header().Set("Cache-Control", "public, s-maxage=30, max-age=30")
 	} else {
-		w.Header().Set("Cache-Control", "public, s-maxage=43200, max-age=43200, stale-while-revalidate=31536000")
+		w.Header().Set("Cache-Control", "public, s-maxage=1800, max-age=1800, stale-while-revalidate=31536000")
 	}
 
 	var err error
