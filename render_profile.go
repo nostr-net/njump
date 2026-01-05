@@ -86,7 +86,7 @@ func renderProfile(ctx context.Context, r *http.Request, w http.ResponseWriter, 
 
 	// Use short cache if notes were just fetched or profile metadata is missing
 	if justFetched || profileMissing {
-		w.Header().Set("Cache-Control", "public, s-maxage=30, max-age=30")
+		w.Header().Set("Cache-Control", "public, s-maxage=5, max-age=5")
 	} else {
 		w.Header().Set("Cache-Control", "public, s-maxage=1800, max-age=1800, stale-while-revalidate=31536000")
 	}
@@ -141,6 +141,7 @@ func renderProfile(ctx context.Context, r *http.Request, w http.ResponseWriter, 
 			Nprofile:                   nprofile,
 			AuthorRelays:               relaysPretty(ctx, profile.PubKey),
 			LastNotes:                  lastNotes,
+			FetchingNotes:              len(lastNotes) == 0 && justFetched,
 			Clients: generateClientList(0, nprofile,
 				func(c ClientReference, s string) string {
 					if c.ID == "nostrudel" {
