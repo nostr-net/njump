@@ -22,6 +22,7 @@ type ProfilePageParams struct {
 	RenderedAuthorAboutText    template.HTML
 	Nevent                     string
 	Nprofile                   string
+	OriginalPath               string
 	Proxy                      string
 	Clients                    []ClientReference
 	FetchingNotes              bool
@@ -197,7 +198,7 @@ templ profileTemplate(params ProfilePageParams) {
 													class="mt-2 hidden"
 													_="on load wait 5s then remove .hidden"
 												>
-													<a href={ templ.URL(fmt.Sprintf("/%s?reload=%d#lastnotes", params.Nprofile, time.Now().Unix())) } class="text-strongpink underline hover:no-underline">
+													<a href={ templ.URL(fmt.Sprintf("%s?reload=%d#lastnotes", params.OriginalPath, time.Now().Unix())) } class="text-strongpink underline hover:no-underline">
 														Refresh to load the last notes
 													</a>
 												</div>

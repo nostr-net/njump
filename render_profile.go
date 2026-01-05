@@ -124,6 +124,7 @@ func renderProfile(ctx context.Context, r *http.Request, w http.ResponseWriter, 
 		w.Header().Add("content-type", "text/html")
 
 		nprofile := profile.Nprofile(ctx, sys, 2)
+		originalPath := strings.Split(strings.Split(r.URL.Path, "?")[0], "#")[0]
 		params := ProfilePageParams{
 			HeadParams: HeadParams{IsProfile: true},
 			Details: DetailsParams{
@@ -139,6 +140,7 @@ func renderProfile(ctx context.Context, r *http.Request, w http.ResponseWriter, 
 			NormalizedAuthorWebsiteURL: normalizeWebsiteURL(profile.Website),
 			RenderedAuthorAboutText:    template.HTML(basicFormatting(html.EscapeString(profile.About), false, false, false)),
 			Nprofile:                   nprofile,
+			OriginalPath:               originalPath,
 			AuthorRelays:               relaysPretty(ctx, profile.PubKey),
 			LastNotes:                  lastNotes,
 			FetchingNotes:              len(lastNotes) == 0 && justFetched,
