@@ -50,6 +50,29 @@ func NewEnhancedEvent(
 	return ee
 }
 
+// NewEnhancedEventWithoutMetadata creates an EnhancedEvent without fetching author metadata
+// Use this when the author is already known or not needed
+func NewEnhancedEventWithoutMetadata(event nostr.Event) EnhancedEvent {
+	ee := EnhancedEvent{Event: &event}
+
+	for _, tag := range event.Tags {
+		if len(tag) < 2 {
+			continue
+		}
+
+		if tag[0] == "subject" || tag[0] == "title" {
+			ee.subject = tag[1]
+		}
+		if tag[0] == "summary" {
+			ee.summary = tag[1]
+		}
+	}
+
+	// Skip metadata fetch - author field remains empty
+
+	return ee
+}
+
 func (ee EnhancedEvent) authorLong() string {
 	if ee.author.Name != "" {
 		return fmt.Sprintf("%s (%s)", ee.author.Name, ee.author.NpubShort())

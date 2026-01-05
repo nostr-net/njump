@@ -220,10 +220,10 @@ func authorLastNotes(ctx context.Context, pubkey nostr.PubKey) (lastNotes []Enha
 	next, done := iter.Pull(sys.Store.QueryEvents(filter, DB_MAX_LIMIT))
 	evt, has := next()
 	if has {
-		lastNotes = append(lastNotes, NewEnhancedEvent(ctx, evt))
+		lastNotes = append(lastNotes, NewEnhancedEventWithoutMetadata(evt))
 		latestTimestamp = evt.CreatedAt
 		for evt, more := next(); more; evt, more = next() {
-			lastNotes = append(lastNotes, NewEnhancedEvent(ctx, evt))
+			lastNotes = append(lastNotes, NewEnhancedEventWithoutMetadata(evt))
 		}
 	}
 	done()
@@ -252,7 +252,7 @@ func authorLastNotes(ctx context.Context, pubkey nostr.PubKey) (lastNotes []Enha
 						break out
 					}
 
-					ee := NewEnhancedEvent(ctx, ie.Event)
+					ee := NewEnhancedEventWithoutMetadata(ie.Event)
 					ee.relays = appendUnique([]string{ie.Relay.URL}, sys.GetEventRelays(ie.Event.ID)...)
 					lastNotes = append(lastNotes, ee)
 
