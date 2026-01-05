@@ -51,7 +51,7 @@ func checkMediaAlert(ctx context.Context, mediaURL string, retry bool) (bool, er
 		return false, nil // skip check if no API key is configured
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*8)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, "GET", "https://nostr-media-alert.com/score?"+url.Values{
