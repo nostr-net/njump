@@ -12,6 +12,7 @@ import (
 	goi18n "github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/pelletier/go-toml"
 	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 	"golang.org/x/text/language"
 )
 
@@ -39,6 +40,8 @@ func isLanguageAllowed(langTag string) bool {
 }
 
 func init() {
+	// Set global log level to INFO to reduce noise
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	bundle = goi18n.NewBundle(language.English)
 	bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
 	bundle.RegisterUnmarshalFunc("json", json.Unmarshal)

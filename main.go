@@ -45,6 +45,12 @@ var (
 	tailwindDebugStuff template.HTML
 )
 
+
+func init() {
+	// Set global log level to INFO to reduce noise
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+}
+
 func main() {
 	err := envconfig.Process("", &s)
 	if err != nil {
