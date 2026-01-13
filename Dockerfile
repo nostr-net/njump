@@ -13,7 +13,7 @@ COPY --link . .
 RUN npm install tailwindcss
 
 # Generate minified Tailwind CSS bundle
-RUN npx tailwind -i base.css -o tailwind-bundle.min.css --minify
+RUN mkdir -p static && npx tailwind -i base.css -o static/tailwind-bundle.min.css --minify
 
 #### Go build stage
 FROM golang:1.24.2-alpine AS gobuilder
@@ -27,7 +27,7 @@ COPY --link . .
 RUN go mod download
 
 # Copy minified Tailwind CSS bundle
-COPY --from=tailwindbuilder /app/tailwind/tailwind-bundle.min.css ./static/tailwind-bundle.min.css
+COPY --from=tailwindbuilder /app/tailwind/static/tailwind-bundle.min.css ./static/tailwind-bundle.min.css
 
 # Generate Go codes from template files
 RUN go get github.com/a-h/templ/runtime && \
