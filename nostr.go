@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	"fiatjaf.com/nostr"
@@ -317,6 +319,10 @@ func relayLastNotes(ctx context.Context, hostname string, limit int) iter.Seq[no
 func relaysPretty(ctx context.Context, pubkey nostr.PubKey) []string {
 	s := make([]string, 0, 3)
 	for _, url := range sys.FetchOutboxRelays(ctx, pubkey, 3) {
+		// Skip localhost URLs
+		if isInvalidUrl(url) {
+			continue
+		}
 		trimmed := trimProtocolAndEndingSlash(url)
 		if slices.Contains(s, trimmed) {
 			continue
@@ -324,4 +330,20 @@ func relaysPretty(ctx context.Context, pubkey nostr.PubKey) []string {
 		s = append(s, trimmed)
 	}
 	return s
+}
+
+func isInvalidUrl(urlStr string) bool {
+	u, err := url.Parse(urlStr)
+
+	// Check for malformed URLs
+	if err != nil {
+		return true
+	}
+
+	host := u.Hostname()
+
+	// Check for localhost URLs
+	return host == "localhost" ||
+		strings.HasPrefix(host, "127.") ||
+		host == "::1"
 }
