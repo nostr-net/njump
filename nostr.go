@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"net"
 	"net/url"
 	"slices"
 	"strings"
@@ -343,7 +344,30 @@ func isInvalidUrl(urlStr string) bool {
 	host := u.Hostname()
 
 	// Check for localhost URLs
-	return host == "localhost" ||
+	if host == "localhost" ||
 		strings.HasPrefix(host, "127.") ||
-		host == "::1"
+		host == "::1" {
+		return true
+	}
+
+	// Check for private IPs
+	private := []string{
+		"10.0.0.0/8",
+		"172.16.0.0/12",
+		"192.168.0.0/16",
+		"169.254.0.0/16",
+		"fc00::/7",
+	}
+
+	ip := net.ParseIP(host)
+	if ip != nil {
+		for _, cidr := range private {
+			_, subnet, _ := net.ParseCIDR(cidr)
+			if subnet.Contains(ip) {
+				return true
+			}
+		}
+	}
+
+	return false
 }
