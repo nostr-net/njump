@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "postinstall": "tailwind -i tailwind.css -o static/tailwind-bundle.min.css --minify"
+    "postinstall": "tailwind -i base.css -o static/tailwind-bundle.min.css --minify"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.10",
