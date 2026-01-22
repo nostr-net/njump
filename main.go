@@ -88,6 +88,11 @@ func main() {
 		}
 		if len(relayConfig.Profiles) > 0 {
 			sys.MetadataRelays.URLs = relayConfig.Profiles
+			sys.RelayListRelays.URLs = relayConfig.Profiles
+			sys.FollowListRelays.URLs = relayConfig.Profiles
+		}
+		if len(relayConfig.JustIds) > 0 {
+			sys.JustIDRelays.URLs = relayConfig.JustIds
 		}
 	}
 
