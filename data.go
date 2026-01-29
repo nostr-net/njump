@@ -40,7 +40,33 @@ type Data struct {
 	kind30311Metadata        *Kind30311Metadata
 	kind31922Or31923Metadata *Kind31922Or31923Metadata
 	Kind30818Metadata        Kind30818Metadata
+	Nip51SetMetadata         Nip51SetMetadata
 	Kind9802Metadata         Kind9802Metadata
+}
+
+// Helper function to extract contacts from p-tags (used by Follow Sets, Starter Packs, etc)
+func extractContactsFromPTags(ctx context.Context, event *nostr.Event, maxContacts int) []ContactInfo {
+	contacts := make([]ContactInfo, 0)
+	count := 0
+	for tag := range event.Tags.FindAll("p") {
+		if count >= maxContacts {
+			break
+		}
+		if len(tag) >= 2 {
+			if pubkey, err := nostr.PubKeyFromHex(tag[1]); err == nil {
+				profile := sys.FetchProfileMetadata(ctx, pubkey)
+				contacts = append(contacts, ContactInfo{
+					PubKey:  pubkey,
+					Name:    profile.Name,
+					About:   profile.About,
+					Picture: profile.Picture,
+					Npub:    nip19.EncodeNpub(pubkey),
+				})
+				count++
+			}
+		}
+	}
+	return contacts
 }
 
 func grabData(ctx context.Context, code string) (Data, error) {
@@ -137,6 +163,34 @@ func grabData(ctx context.Context, code string) (Data, error) {
 			return ""
 		}()
 		data.content = event.Content
+	case 30000:
+		data.templateId = FollowSet
+		data.Nip51SetMetadata.Title = event.Tags.GetD()
+		if data.Nip51SetMetadata.Title == "" {
+			data.Nip51SetMetadata.Title = "Follow Set"
+		}
+		if titleTag := event.Tags.Find("title"); titleTag != nil {
+			data.Nip51SetMetadata.Title = titleTag[1]
+		}
+		if descTag := event.Tags.Find("description"); descTag != nil {
+			data.Nip51SetMetadata.Description = descTag[1]
+		}
+		data.content = event.Content
+		data.Nip51SetMetadata.Contacts = extractContactsFromPTags(ctx, event, 50)
+	case 39089:
+		data.templateId = StarterPack
+		data.Nip51SetMetadata.Title = event.Tags.GetD()
+		if data.Nip51SetMetadata.Title == "" {
+			data.Nip51SetMetadata.Title = "Starter Pack"
+		}
+		if titleTag := event.Tags.Find("title"); titleTag != nil {
+			data.Nip51SetMetadata.Title = titleTag[1]
+		}
+		if descTag := event.Tags.Find("description"); descTag != nil {
+			data.Nip51SetMetadata.Description = descTag[1]
+		}
+		data.content = event.Content
+		data.Nip51SetMetadata.Contacts = extractContactsFromPTags(ctx, event, 50)
 	case 9802:
 		data.templateId = Highlight
 		data.content = event.Content

@@ -577,6 +577,48 @@ func renderEvent(w http.ResponseWriter, r *http.Request) {
 
 		component = wikiEventTemplate(params, isEmbed)
 
+	case FollowSet:
+		contactCount := len(data.Nip51SetMetadata.Contacts)
+		opengraph.Superscript = fmt.Sprintf("follow set with %d contacts", contactCount)
+		opengraph.Subscript = "by " + data.event.author.ShortName()
+
+		params := FollowSetPageParams{
+			BaseEventPageParams: baseEventPageParams,
+			OpenGraphParams:     opengraph,
+			HeadParams: HeadParams{
+				IsProfile:   false,
+				NaddrNaked:  data.naddrNaked,
+				NeventNaked: data.neventNaked,
+			},
+			FollowSet: data.Nip51SetMetadata,
+			Details:   detailsData,
+			Content:   basicFormatting(data.content, false, false, false),
+			Clients:   generateClientList(int(data.event.Kind), data.naddr),
+		}
+
+		component = followSetTemplate(params, isEmbed)
+
+	case StarterPack:
+		contactCount := len(data.Nip51SetMetadata.Contacts)
+		opengraph.Superscript = fmt.Sprintf("starter pack with %d contacts", contactCount)
+		opengraph.Subscript = "by " + data.event.author.ShortName()
+
+		params := StarterPackPageParams{
+			BaseEventPageParams: baseEventPageParams,
+			OpenGraphParams:     opengraph,
+			HeadParams: HeadParams{
+				IsProfile:   false,
+				NaddrNaked:  data.naddrNaked,
+				NeventNaked: data.neventNaked,
+			},
+			StarterPack: data.Nip51SetMetadata,
+			Details:     detailsData,
+			Content:     basicFormatting(data.content, false, false, false),
+			Clients:     generateClientList(int(data.event.Kind), data.naddr),
+		}
+
+		component = starterPackTemplate(params, isEmbed)
+
 	case Highlight:
 		if data.Kind9802Metadata.Comment == "" {
 			opengraph.Superscript = data.Kind9802Metadata.SourceURL
