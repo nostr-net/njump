@@ -311,6 +311,16 @@
       "yakihonne",
       "default-web"
     ],
+    "9802": ["coracle", "nostrudel", "lumilumi", "jumble", "default-web"],
+    "1063": [
+      "native",
+      "amethyst",
+      "lumilumi",
+      "phoenix",
+      "coracle",
+      "nostrudel",
+      "default-web"
+    ],
     "30000": ["native", "amethyst", "coracle", "nostrudel", "default-web"],
     "30023": [
       "native",
@@ -342,16 +352,6 @@
       "habla",
       "default-web"
     ],
-    "1063": [
-      "native",
-      "amethyst",
-      "lumilumi",
-      "phoenix",
-      "coracle",
-      "nostrudel",
-      "default-web"
-    ],
-    "9802": ["coracle", "nostrudel", "lumilumi", "jumble", "default-web"],
     "30311": [
       "native",
       "amethyst",
@@ -365,6 +365,7 @@
     "30818": ["native", "wikistr", "wikifreedia", "default-web"],
     "31922": ["native", "coracle", "default-web"],
     "31923": ["native", "coracle", "default-web"],
+    "39089": ["native", "amethyst", "coracle", "nostrudel", "default-web"],
     "default": [
       "native",
       "yakihonne-ios",
