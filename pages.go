@@ -24,6 +24,8 @@ const (
 	LiveEventMessage
 	CalendarEvent
 	WikiEvent
+	FollowSet
+	StarterPack
 	Highlight
 	Other
 )

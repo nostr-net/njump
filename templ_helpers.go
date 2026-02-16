@@ -23,6 +23,13 @@ func isRTL(ctx context.Context) bool {
 	return false
 }
 
+func requestPath(ctx context.Context) string {
+	if val, ok := ctx.Value("requestPath").(string); ok && val != "" {
+		return val
+	}
+	return "/"
+}
+
 func availableLanguages() []i18n.LanguageOption {
 	return i18n.GetAvailableLanguages()
 }

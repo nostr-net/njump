@@ -38,12 +38,37 @@ func renderProfile(ctx context.Context, r *http.Request, w http.ResponseWriter, 
 		return
 	}
 
-	profile := sys.FetchProfileMetadata(ctx, pp.PublicKey)
+	if banned, reason := isPubkeyBanned(pp.PublicKey); banned {
+		deleteAllEventsFromPubKey(pp.PublicKey)
+		w.Header().Set("Cache-Control", "public, immutable, s-maxage=604800, max-age=604800")
+		log.Warn().Str("pubkey", pp.PublicKey.Hex()).Str("reason", reason).Msg("pubkey banned")
+		http.Error(w, i18n.Translate(ctx, "error.pubkey_banned", nil), http.StatusNotFound)
+		return
+	}
+
+	// Give metadata fetch only 5 seconds to avoid timing out the whole page
+	profileCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	profile := sys.FetchProfileMetadata(profileCtx, pp.PublicKey)
+
+	// Check if profile metadata is missing
+	profileMissing := profile.Event == nil
+	if profileMissing {
+		// Trigger background fetch to populate cache for next request
+		go sys.FetchProfileMetadata(context.Background(), pp.PublicKey)
+	}
 	if isMaliciousBridged(profile) {
+		deleteAllEventsFromPubKey(pp.PublicKey)
+		w.Header().Set("Cache-Control", "public, immutable, s-maxage=604800, max-age=604800")
+		log.Warn().Str("pubkey", pp.PublicKey.Hex()).Msg("pubkey malicious bridged blocked")
 		http.Error(w, i18n.Translate(ctx, "error.profile_malicious", nil), http.StatusNotFound)
 		return
 	}
 	if is, _ := isExplicitContent(ctx, profile.Picture); is {
+		deleteAllEventsFromPubKey(pp.PublicKey)
+		w.Header().Set("Cache-Control", "public, immutable, s-maxage=604800, max-age=604800")
+		log.Warn().Str("pubkey", pp.PublicKey.Hex()).Msg("pubkey explicit content blocked")
 		http.Error(w, i18n.Translate(ctx, "error.profile_not_allowed", nil), http.StatusNotFound)
 		return
 	}
@@ -55,11 +80,17 @@ func renderProfile(ctx context.Context, r *http.Request, w http.ResponseWriter, 
 	}
 
 	var lastNotes []EnhancedEvent
+	var justFetched bool
 	if !isEmbed {
-		lastNotes, _ = authorLastNotes(ctx, profile.PubKey)
+		lastNotes, justFetched = authorLastNotes(ctx, profile.PubKey)
 	}
 
-	w.Header().Set("Cache-Control", "public, s-maxage=604800, max-age=604800, stale-while-revalidate=31536000")
+	// Use short cache if notes were just fetched or profile metadata is missing
+	if justFetched || profileMissing {
+		w.Header().Set("Cache-Control", "public, s-maxage=5, max-age=5")
+	} else {
+		w.Header().Set("Cache-Control", "public, s-maxage=1800, max-age=1800, stale-while-revalidate=31536000")
+	}
 
 	var err error
 	if isSitemap {
@@ -94,6 +125,7 @@ func renderProfile(ctx context.Context, r *http.Request, w http.ResponseWriter, 
 		w.Header().Add("content-type", "text/html")
 
 		nprofile := profile.Nprofile(ctx, sys, 2)
+		originalPath := strings.Split(strings.Split(r.URL.Path, "?")[0], "#")[0]
 		params := ProfilePageParams{
 			HeadParams: HeadParams{
 				IsProfile: true,
@@ -113,14 +145,16 @@ func renderProfile(ctx context.Context, r *http.Request, w http.ResponseWriter, 
 			NormalizedAuthorWebsiteURL: normalizeWebsiteURL(profile.Website),
 			RenderedAuthorAboutText:    template.HTML(basicFormatting(html.EscapeString(profile.About), false, false, false)),
 			Nprofile:                   nprofile,
+			OriginalPath:               originalPath,
 			AuthorRelays:               relaysPretty(ctx, profile.PubKey),
 			LastNotes:                  lastNotes,
+			FetchingNotes:              len(lastNotes) == 0 && justFetched,
 			Clients: generateClientList(0, nprofile,
 				func(c ClientReference, s string) string {
-					if c == nostrudel {
+					if c.ID == "nostrudel" {
 						s = strings.Replace(s, "/n/", "/u/", 1)
 					}
-					if c == primalWeb {
+					if c.ID == "primal-web" {
 						s = strings.Replace(
 							strings.Replace(s, "/e/", "/p/", 1),
 							nprofile, profile.Npub(), 1)

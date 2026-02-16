@@ -78,7 +78,7 @@ var kindNames = map[nostr.Kind]string{
 	23194: "Wallet Request",
 	23195: "Wallet Response",
 	24133: "Nostr Connect",
-	30000: "Categorized People List",
+	30000: "Categorized Follow Set",
 	30001: "Categorized Bookmark List",
 	30008: "Profile Badges",
 	30009: "Badge Definition",
@@ -88,6 +88,7 @@ var kindNames = map[nostr.Kind]string{
 	30078: "Application-specific Data",
 	30818: "Wiki article",
 	30311: "Live Event",
+	39089: "Starter Pack",
 }
 
 var kindNIPs = map[nostr.Kind]string{
@@ -131,6 +132,7 @@ var kindNIPs = map[nostr.Kind]string{
 	30078: "78",
 	30818: "54",
 	30311: "53",
+	39089: "51",
 }
 
 type Style string
@@ -249,6 +251,11 @@ func replaceNostrURLsWithHTMLTags(matcher *regexp.Regexp, input string) string {
 func shortenNostrURLs(input string) string {
 	// match and replace npup1, nprofile1, note1, nevent1, etc
 	return nostrEveryMatcher.ReplaceAllStringFunc(input, func(match string) string {
+		if len(match) < 60 {
+			// broken, return as is
+			return match
+		}
+
 		nip19 := match[len("nostr:"):]
 		firstChars := nip19[:8]
 		lastChars := nip19[len(nip19)-4:]
@@ -286,6 +293,12 @@ func replaceUserReferencesWithNames(ctx context.Context, input []string, prefix 
 			nostrNpubNprofileMatcher.ReplaceAllStringFunc(line, func(match string) string {
 				submatch := nostrNpubNprofileMatcher.FindStringSubmatch(match)
 				nip19code := submatch[1]
+
+				if len(nip19code) < 60 {
+					// broken, return as is
+					return match
+				}
+
 				name, ok := getNameFromNip19(ctx, nip19code)
 				if ok {
 					return prefix + strings.ReplaceAll(name, " ", string(THIN_SPACE))

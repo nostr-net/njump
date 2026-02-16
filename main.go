@@ -19,24 +19,29 @@ import (
 )
 
 type Settings struct {
-	Port                string   `envconfig:"PORT" default:"2999"`
-	Domain              string   `envconfig:"DOMAIN" default:"njump.me"`
-	DefaultLanguage     string   `envconfig:"DEFAULT_LANGUAGE" default:"en"`
-	ServiceURL          string   `envconfig:"SERVICE_URL"`
-	InternalDBPath      string   `envconfig:"DISK_CACHE_PATH" default:"/tmp/njump-internal"`
-	EventStorePath      string   `envconfig:"EVENT_STORE_PATH" default:"/tmp/njump-db"`
-	KVStorePath         string   `envconfig:"KV_STORE_PATH" default:"/tmp/njump-kv"`
-	HintsMemoryDumpPath string   `envconfig:"HINTS_SAVE_PATH" default:"/tmp/njump-hints.json"`
-	TailwindDebug       bool     `envconfig:"TAILWIND_DEBUG"`
-	RelayConfigPath     string   `envconfig:"RELAY_CONFIG_PATH"`
-	TrustedPubKeysHex []string `envconfig:"TRUSTED_PUBKEYS"`
-	trustedPubKeys    []nostr.PubKey
+	Port                string `envconfig:"PORT" default:"2999"`
+	Domain              string `envconfig:"DOMAIN" default:"njump.me"`
+	DefaultLanguage     string `envconfig:"DEFAULT_LANGUAGE" default:"en"`
+	ServiceURL          string `envconfig:"SERVICE_URL"`
+	InternalDBPath      string `envconfig:"DISK_CACHE_PATH" default:"/tmp/njump-internal"`
+	EventStorePath      string `envconfig:"EVENT_STORE_PATH" default:"/tmp/njump-db"`
+	KVStorePath         string `envconfig:"KV_STORE_PATH" default:"/tmp/njump-kv"`
+	HintsMemoryDumpPath string `envconfig:"HINTS_SAVE_PATH" default:"/tmp/njump-hints.json"`
+	TailwindDebug       bool   `envconfig:"TAILWIND_DEBUG"`
+	RelayConfigPath     string `envconfig:"RELAY_CONFIG_PATH"`
+	ClientsConfigPath   string `envconfig:"CLIENTS_CONFIG_PATH"`
 	MediaAlertAPIKey    string `envconfig:"MEDIA_ALERT_API_KEY"`
 	ErrorLogPath        string `envconfig:"ERROR_LOG_PATH" default:"/tmp/njump-errors.jsonl"`
+
+	TrustedPubKeysHex []string `envconfig:"TRUSTED_PUBKEYS"`
+	trustedPubKeys    []nostr.PubKey
 }
 
 //go:embed static/*
 var static embed.FS
+
+//go:embed clients.json
+var embeddedClientsJSON string
 
 var (
 	s   Settings
@@ -44,7 +49,6 @@ var (
 		With().Timestamp().Logger()
 	tailwindDebugStuff template.HTML
 )
-
 
 func init() {
 	// Set global log level to INFO to reduce noise
@@ -90,6 +94,28 @@ func main() {
 		}
 		if len(relayConfig.Profiles) > 0 {
 			sys.MetadataRelays.URLs = relayConfig.Profiles
+			sys.RelayListRelays.URLs = relayConfig.Profiles
+			sys.FollowListRelays.URLs = relayConfig.Profiles
+		}
+		if len(relayConfig.JustIds) > 0 {
+			sys.JustIDRelays.URLs = relayConfig.JustIds
+		}
+	}
+
+	if s.ClientsConfigPath != "" {
+		data, err := os.ReadFile(s.ClientsConfigPath)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to load clients config")
+			return
+		}
+		if err := json.Unmarshal(data, &clientConfig); err != nil {
+			log.Fatal().Err(err).Msg("failed to parse clients config")
+			return
+		}
+	} else {
+		if err := json.Unmarshal([]byte(embeddedClientsJSON), &clientConfig); err != nil {
+			log.Fatal().Err(err).Msg("failed to parse embedded clients config")
+			return
 		}
 	}
 
@@ -161,14 +187,10 @@ func main() {
 	sub.HandleFunc("/{$}", renderHomepage)
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		agentBlock(
-			ipBlock(
+		loggingMiddleware(
+			timeoutMiddleware(
 				languageMiddleware(
-					loggingMiddleware(
-						queueMiddleware(
-							sub.ServeHTTP,
-						),
-					),
+					sub.ServeHTTP,
 				),
 			),
 		)(w, r)

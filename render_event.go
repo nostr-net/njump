@@ -22,6 +22,13 @@ import (
 func renderEvent(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	code := r.PathValue("code")
+	if code == "" {
+		code = strings.Trim(r.URL.Path, "/")
+	}
+	if code == "" {
+		renderHomepage(w, r)
+		return
+	}
 
 	isEmbed := r.URL.Query().Get("embed") != ""
 
@@ -455,7 +462,7 @@ func renderEvent(w http.ResponseWriter, r *http.Request) {
 			LiveEvent: *data.kind30311Metadata,
 			Clients: generateClientList(int(data.event.Kind), data.naddr,
 				func(c ClientReference, s string) string {
-					if c == nostrudel {
+					if c.ID == "nostrudel" {
 						s = strings.Replace(s, "/u/", "/streams/", 1)
 					}
 					return s
@@ -583,6 +590,52 @@ func renderEvent(w http.ResponseWriter, r *http.Request) {
 		}
 
 		component = wikiEventTemplate(params, isEmbed)
+
+	case FollowSet:
+		contactCount := len(data.Nip51SetMetadata.Contacts)
+		opengraph.Superscript = fmt.Sprintf("follow set with %d contacts", contactCount)
+		opengraph.Subscript = "by " + data.event.author.ShortName()
+
+		params := FollowSetPageParams{
+			BaseEventPageParams: baseEventPageParams,
+			OpenGraphParams:     opengraph,
+			HeadParams: HeadParams{
+				IsProfile:   false,
+				NaddrNaked:  data.naddrNaked,
+				NeventNaked: data.neventNaked,
+				Lang:        i18n.LanguageFromContext(ctx),
+				Domain:      s.Domain,
+			},
+			FollowSet: data.Nip51SetMetadata,
+			Details:   detailsData,
+			Content:   basicFormatting(data.content, false, false, false),
+			Clients:   generateClientList(int(data.event.Kind), data.naddr),
+		}
+
+		component = followSetTemplate(params, isEmbed)
+
+	case StarterPack:
+		contactCount := len(data.Nip51SetMetadata.Contacts)
+		opengraph.Superscript = fmt.Sprintf("starter pack with %d contacts", contactCount)
+		opengraph.Subscript = "by " + data.event.author.ShortName()
+
+		params := StarterPackPageParams{
+			BaseEventPageParams: baseEventPageParams,
+			OpenGraphParams:     opengraph,
+			HeadParams: HeadParams{
+				IsProfile:   false,
+				NaddrNaked:  data.naddrNaked,
+				NeventNaked: data.neventNaked,
+				Lang:        i18n.LanguageFromContext(ctx),
+				Domain:      s.Domain,
+			},
+			StarterPack: data.Nip51SetMetadata,
+			Details:     detailsData,
+			Content:     basicFormatting(data.content, false, false, false),
+			Clients:     generateClientList(int(data.event.Kind), data.naddr),
+		}
+
+		component = starterPackTemplate(params, isEmbed)
 
 	case Highlight:
 		if data.Kind9802Metadata.Comment == "" {

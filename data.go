@@ -41,7 +41,64 @@ type Data struct {
 	kind30311Metadata        *Kind30311Metadata
 	kind31922Or31923Metadata *Kind31922Or31923Metadata
 	Kind30818Metadata        Kind30818Metadata
+	Nip51SetMetadata         Nip51SetMetadata
 	Kind9802Metadata         Kind9802Metadata
+}
+
+// Helper function to extract contacts from p-tags (used by Follow Sets, Starter Packs, etc)
+func extractContactsFromPTags(ctx context.Context, event *nostr.Event, maxContacts int) []ContactInfo {
+	// First pass: collect all valid pubkeys
+	pubkeys := make([]nostr.PubKey, 0, maxContacts)
+	count := 0
+	for tag := range event.Tags.FindAll("p") {
+		if count >= maxContacts {
+			break
+		}
+		if len(tag) >= 2 {
+			if pubkey, err := nostr.PubKeyFromHex(tag[1]); err == nil {
+				pubkeys = append(pubkeys, pubkey)
+				count++
+			}
+		}
+	}
+
+	// Fetch all metadata in parallel
+	type result struct {
+		index   int
+		pubkey  nostr.PubKey
+		profile sdk.ProfileMetadata
+	}
+	results := make(chan result, len(pubkeys))
+
+	for i, pubkey := range pubkeys {
+		go func(idx int, pk nostr.PubKey) {
+			profile := sys.FetchProfileMetadata(ctx, pk)
+			results <- result{index: idx, pubkey: pk, profile: profile}
+		}(i, pubkey)
+	}
+
+	// Collect results
+	profileMap := make(map[int]result)
+	for i := 0; i < len(pubkeys); i++ {
+		r := <-results
+		profileMap[r.index] = r
+	}
+	close(results)
+
+	// Build contacts array in original order
+	contacts := make([]ContactInfo, 0, len(pubkeys))
+	for i := 0; i < len(pubkeys); i++ {
+		r := profileMap[i]
+		contacts = append(contacts, ContactInfo{
+			PubKey:  r.pubkey,
+			Name:    r.profile.Name,
+			About:   r.profile.About,
+			Picture: r.profile.Picture,
+			Npub:    nip19.EncodeNpub(r.pubkey),
+		})
+	}
+
+	return contacts
 }
 
 func grabData(ctx context.Context, code string) (Data, error) {
@@ -138,6 +195,34 @@ func grabData(ctx context.Context, code string) (Data, error) {
 			return ""
 		}()
 		data.content = event.Content
+	case 30000:
+		data.templateId = FollowSet
+		data.Nip51SetMetadata.Title = event.Tags.GetD()
+		if data.Nip51SetMetadata.Title == "" {
+			data.Nip51SetMetadata.Title = "Follow Set"
+		}
+		if titleTag := event.Tags.Find("title"); titleTag != nil {
+			data.Nip51SetMetadata.Title = titleTag[1]
+		}
+		if descTag := event.Tags.Find("description"); descTag != nil {
+			data.Nip51SetMetadata.Description = descTag[1]
+		}
+		data.content = event.Content
+		data.Nip51SetMetadata.Contacts = extractContactsFromPTags(ctx, event, 50)
+	case 39089:
+		data.templateId = StarterPack
+		data.Nip51SetMetadata.Title = event.Tags.GetD()
+		if data.Nip51SetMetadata.Title == "" {
+			data.Nip51SetMetadata.Title = "Starter Pack"
+		}
+		if titleTag := event.Tags.Find("title"); titleTag != nil {
+			data.Nip51SetMetadata.Title = titleTag[1]
+		}
+		if descTag := event.Tags.Find("description"); descTag != nil {
+			data.Nip51SetMetadata.Description = descTag[1]
+		}
+		data.content = event.Content
+		data.Nip51SetMetadata.Contacts = extractContactsFromPTags(ctx, event, 50)
 	case 9802:
 		data.templateId = Highlight
 		data.content = event.Content

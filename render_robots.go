@@ -31,6 +31,5 @@ Disallow: /
 
 User-agent: *
 Allow: /
-
-`, s.Domain, s.Domain, s.Domain)
+`)
 }

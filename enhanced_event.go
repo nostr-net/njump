@@ -45,14 +45,30 @@ func NewEnhancedEvent(
 		}
 	}
 
-	if event.Kind == 0 {
-		spm, _ := sdk.ParseMetadata(event)
-		ee.author = spm
-	} else {
-		ctx, cancel := context.WithTimeout(ctx, time.Second*3)
-		defer cancel()
-		ee.author = sys.FetchProfileMetadata(ctx, event.PubKey)
+	ee.author = getMetadata(ctx, event)
+
+	return ee
+}
+
+// NewEnhancedEventWithoutMetadata creates an EnhancedEvent without fetching author metadata
+// Use this when the author is already known or not needed
+func NewEnhancedEventWithoutMetadata(event nostr.Event) EnhancedEvent {
+	ee := EnhancedEvent{Event: &event}
+
+	for _, tag := range event.Tags {
+		if len(tag) < 2 {
+			continue
+		}
+
+		if tag[0] == "subject" || tag[0] == "title" {
+			ee.subject = tag[1]
+		}
+		if tag[0] == "summary" {
+			ee.summary = tag[1]
+		}
 	}
+
+	// Skip metadata fetch - author field remains empty
 
 	return ee
 }

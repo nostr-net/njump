@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"net"
+	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	"fiatjaf.com/nostr"
@@ -85,6 +88,23 @@ func initSystem() func() {
 	sys = sdk.NewSystem()
 	sys.KVStore = kv
 	sys.Store = db
+
+	sys.RelayListRelays = sdk.NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social", "wss://relay.vertexlab.io", "wss://indexer.coracle.social")
+	sys.FollowListRelays = sdk.NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social", "wss://relay.vertexlab.io", "wss://indexer.coracle.social")
+	sys.MetadataRelays = sdk.NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social", "wss://relay.vertexlab.io", "wss://indexer.coracle.social")
+	sys.FallbackRelays = sdk.NewRelayStream(
+		"wss://offchain.pub",
+		"wss://relay.damus.io",
+		"wss://relay.primal.net",
+		"wss://nostr.mom",
+		"wss://nos.lol",
+		"wss://relay.mostr.pub",
+		"wss://nostr.wine",
+	)
+	sys.JustIDRelays = sdk.NewRelayStream(
+		"wss://cache2.primal.net/v1",
+		"wss://relay.nostr.band",
+	)
 
 	return db.Close
 }
@@ -176,10 +196,19 @@ func getEvent(ctx context.Context, code string) (*nostr.Event, error) {
 	return event, err
 }
 
+func getMetadata(ctx context.Context, event nostr.Event) sdk.ProfileMetadata {
+	if event.Kind == 0 {
+		spm, _ := sdk.ParseMetadata(event)
+		return spm
+	} else {
+		ctx, cancel := context.WithTimeout(ctx, time.Second*3)
+		defer cancel()
+		return sys.FetchProfileMetadata(ctx, event.PubKey)
+	}
+}
+
 func authorLastNotes(ctx context.Context, pubkey nostr.PubKey) (lastNotes []EnhancedEvent, justFetched bool) {
 	limit := 100
-
-	go sys.FetchProfileMetadata(ctx, pubkey) // fetch this before so the cache is filled for later
 
 	filter := nostr.Filter{
 		Kinds:   []nostr.Kind{nostr.KindTextNote},
@@ -194,10 +223,10 @@ func authorLastNotes(ctx context.Context, pubkey nostr.PubKey) (lastNotes []Enha
 	next, done := iter.Pull(sys.Store.QueryEvents(filter, DB_MAX_LIMIT))
 	evt, has := next()
 	if has {
-		lastNotes = append(lastNotes, NewEnhancedEvent(ctx, evt))
+		lastNotes = append(lastNotes, NewEnhancedEventWithoutMetadata(evt))
 		latestTimestamp = evt.CreatedAt
 		for evt, more := next(); more; evt, more = next() {
-			lastNotes = append(lastNotes, NewEnhancedEvent(ctx, evt))
+			lastNotes = append(lastNotes, NewEnhancedEventWithoutMetadata(evt))
 		}
 	}
 	done()
@@ -226,7 +255,7 @@ func authorLastNotes(ctx context.Context, pubkey nostr.PubKey) (lastNotes []Enha
 						break out
 					}
 
-					ee := NewEnhancedEvent(ctx, ie.Event)
+					ee := NewEnhancedEventWithoutMetadata(ie.Event)
 					ee.relays = appendUnique([]string{ie.Relay.URL}, sys.GetEventRelays(ie.Event.ID)...)
 					lastNotes = append(lastNotes, ee)
 
@@ -291,6 +320,10 @@ func relayLastNotes(ctx context.Context, hostname string, limit int) iter.Seq[no
 func relaysPretty(ctx context.Context, pubkey nostr.PubKey) []string {
 	s := make([]string, 0, 3)
 	for _, url := range sys.FetchOutboxRelays(ctx, pubkey, 3) {
+		// Skip localhost URLs
+		if isInvalidUrl(url) {
+			continue
+		}
 		trimmed := trimProtocolAndEndingSlash(url)
 		if slices.Contains(s, trimmed) {
 			continue
@@ -298,4 +331,43 @@ func relaysPretty(ctx context.Context, pubkey nostr.PubKey) []string {
 		s = append(s, trimmed)
 	}
 	return s
+}
+
+func isInvalidUrl(urlStr string) bool {
+	u, err := url.Parse(urlStr)
+
+	// Check for malformed URLs
+	if err != nil {
+		return true
+	}
+
+	host := u.Hostname()
+
+	// Check for localhost URLs
+	if host == "localhost" ||
+		strings.HasPrefix(host, "127.") ||
+		host == "::1" {
+		return true
+	}
+
+	// Check for private IPs
+	private := []string{
+		"10.0.0.0/8",
+		"172.16.0.0/12",
+		"192.168.0.0/16",
+		"169.254.0.0/16",
+		"fc00::/7",
+	}
+
+	ip := net.ParseIP(host)
+	if ip != nil {
+		for _, cidr := range private {
+			_, subnet, _ := net.ParseCIDR(cidr)
+			if subnet.Contains(ip) {
+				return true
+			}
+		}
+	}
+
+	return false
 }
