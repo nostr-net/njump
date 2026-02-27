@@ -19,19 +19,21 @@ import (
 )
 
 type Settings struct {
-	Port                string `envconfig:"PORT" default:"2999"`
-	Domain              string `envconfig:"DOMAIN" default:"njump.me"`
-	DefaultLanguage     string `envconfig:"DEFAULT_LANGUAGE" default:"en"`
-	ServiceURL          string `envconfig:"SERVICE_URL"`
-	InternalDBPath      string `envconfig:"DISK_CACHE_PATH" default:"/tmp/njump-internal"`
-	EventStorePath      string `envconfig:"EVENT_STORE_PATH" default:"/tmp/njump-db"`
-	KVStorePath         string `envconfig:"KV_STORE_PATH" default:"/tmp/njump-kv"`
-	HintsMemoryDumpPath string `envconfig:"HINTS_SAVE_PATH" default:"/tmp/njump-hints.json"`
-	TailwindDebug       bool   `envconfig:"TAILWIND_DEBUG"`
-	RelayConfigPath     string `envconfig:"RELAY_CONFIG_PATH"`
-	ClientsConfigPath   string `envconfig:"CLIENTS_CONFIG_PATH"`
-	MediaAlertAPIKey    string `envconfig:"MEDIA_ALERT_API_KEY"`
-	ErrorLogPath        string `envconfig:"ERROR_LOG_PATH" default:"/tmp/njump-errors.jsonl"`
+	Port                     string `envconfig:"PORT" default:"2999"`
+	Domain                   string `envconfig:"DOMAIN" default:"njump.me"`
+	DefaultLanguage          string `envconfig:"DEFAULT_LANGUAGE" default:"en"`
+	ServiceURL               string `envconfig:"SERVICE_URL"`
+	InternalDBPath           string `envconfig:"DISK_CACHE_PATH" default:"/tmp/njump-internal"`
+	EventStorePath           string `envconfig:"EVENT_STORE_PATH" default:"/tmp/njump-db"`
+	KVStorePath              string `envconfig:"KV_STORE_PATH" default:"/tmp/njump-kv"`
+	HintsMemoryDumpPath      string `envconfig:"HINTS_SAVE_PATH" default:"/tmp/njump-hints.json"`
+	TailwindDebug            bool   `envconfig:"TAILWIND_DEBUG"`
+	RelayConfigPath          string `envconfig:"RELAY_CONFIG_PATH"`
+	ClientsConfigPath        string `envconfig:"CLIENTS_CONFIG_PATH"`
+	MediaAlertAPIKey         string `envconfig:"MEDIA_ALERT_API_KEY"`
+	ErrorLogPath             string `envconfig:"ERROR_LOG_PATH" default:"/tmp/njump-errors.jsonl"`
+	MetadataFetchConcurrency int    `envconfig:"METADATA_FETCH_CONCURRENCY" default:"8"`
+	MetadataFetchTimeoutMs   int    `envconfig:"METADATA_FETCH_TIMEOUT_MS" default:"4000"`
 
 	TrustedPubKeysHex []string `envconfig:"TRUSTED_PUBKEYS"`
 	trustedPubKeys    []nostr.PubKey

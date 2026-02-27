@@ -1,7 +1,8 @@
 export PATH := "./node_modules/.bin:" + env_var('PATH')
+templ_cmd := "go run github.com/a-h/templ/cmd/templ@v0.3.960"
 
 dev tags='':
-    fd 'go|templ|base.css' | entr -r bash -c 'templ generate && go build -tags={{tags}} -o /tmp/njump && TAILWIND_DEBUG=true PORT=3001 /tmp/njump'
+    fd 'go|templ|base.css' | entr -r bash -c '{{templ_cmd}} generate && go build -tags={{tags}} -o /tmp/njump && TAILWIND_DEBUG=true PORT=3001 /tmp/njump'
 
 build: templ tailwind
     go build -o ./njump
@@ -14,7 +15,7 @@ deploy target: templ tailwind
     ssh {{target}} 'systemctl start njump'
 
 templ:
-    templ generate
+    {{templ_cmd}} generate
 
 protobuf:
     protoc --proto_path=. --go_out=. --go_opt=paths=source_relative internal.proto

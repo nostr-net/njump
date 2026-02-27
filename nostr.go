@@ -167,10 +167,14 @@ func getEvent(ctx context.Context, code string) (*nostr.Event, error) {
 	if event == nil {
 		await(ctx)
 
-		evt, _, err := sys.FetchSpecificEvent(ctx, pointer, sdk.FetchSpecificEventParameters{
+		// Use a cancellable fetch context so once we have a result we immediately
+		// stop any in-flight relay subscriptions created inside FetchSpecificEvent.
+		fetchCtx, fetchCancel := context.WithCancel(ctx)
+		evt, _, err := sys.FetchSpecificEvent(fetchCtx, pointer, sdk.FetchSpecificEventParameters{
 			SkipLocalStore:   true,
 			SaveToLocalStore: true,
 		})
+		fetchCancel()
 		if err != nil {
 			return evt, err
 		}

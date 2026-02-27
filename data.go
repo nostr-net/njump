@@ -69,11 +69,33 @@ func extractContactsFromPTags(ctx context.Context, event *nostr.Event, maxContac
 		profile sdk.ProfileMetadata
 	}
 	results := make(chan result, len(pubkeys))
+	concurrency := s.MetadataFetchConcurrency
+	if concurrency < 1 {
+		concurrency = 1
+	}
+	timeout := time.Duration(s.MetadataFetchTimeoutMs) * time.Millisecond
+	if timeout <= 0 {
+		timeout = 4 * time.Second
+	}
+	sem := make(chan struct{}, concurrency)
 
 	for i, pubkey := range pubkeys {
 		go func(idx int, pk nostr.PubKey) {
-			profile := sys.FetchProfileMetadata(ctx, pk)
-			results <- result{index: idx, pubkey: pk, profile: profile}
+			r := result{index: idx, pubkey: pk}
+
+			// Cap concurrent metadata fetches to avoid bursty relay fanout that
+			// increases the likelihood of rate limiting.
+			select {
+			case sem <- struct{}{}:
+				fetchCtx, cancel := context.WithTimeout(ctx, timeout)
+				r.profile = sys.FetchProfileMetadata(fetchCtx, pk)
+				cancel()
+				<-sem
+			case <-ctx.Done():
+				// Keep empty metadata when request is canceled/timed out.
+			}
+
+			results <- r
 		}(i, pubkey)
 	}
 

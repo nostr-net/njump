@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@v3
       - run: wget https://github.com/tailwindlabs/tailwindcss/releases/download/v3.3.5/tailwindcss-linux-x64
       - run: chmod +x tailwindcss-linux-x64
-      - run: ./tailwindcss-linux-x64 -i tailwind.css -o static/tailwind-bundle.min.css --minify
+      - run: ./tailwindcss-linux-x64 -i base.css -o static/tailwind-bundle.min.css --minify
       - uses: wangyoucao577/go-release-action@v1.41
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

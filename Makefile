@@ -9,6 +9,8 @@ TEMPL_GO_FILES := $(TEMPL_FILES:.templ=_templ.go)
 GO_FILES := $(wildcard *.go)
 CSS_INPUT := base.css
 CSS_OUTPUT := static/tailwind-bundle.min.css
+TAILWIND_BIN := node_modules/.bin/tailwind
+TEMPL_CMD := go run github.com/a-h/templ/cmd/templ@v0.3.960
 
 # Build timestamp for cache busting
 BUILD_TS := $(shell date '+%s')
@@ -19,19 +21,20 @@ all: build
 # Install dependencies
 install-deps:
 	go mod download
-	npm install tailwindcss
+	npm install
 
 # Generate templ files
-templ: $(TEMPL_GO_FILES)
-
-%_templ.go: %.templ
-	templ generate -f $<
+templ:
+	$(TEMPL_CMD) generate
 
 # Generate tailwind CSS
 tailwind: $(CSS_OUTPUT)
 
-$(CSS_OUTPUT): $(CSS_INPUT) tailwind.config.js $(TEMPL_FILES)
-	npx tailwind -i $(CSS_INPUT) -o $(CSS_OUTPUT) --minify
+$(TAILWIND_BIN): package.json
+	npm install
+
+$(CSS_OUTPUT): $(CSS_INPUT) tailwind.config.js $(TEMPL_FILES) $(TAILWIND_BIN)
+	$(TAILWIND_BIN) -i $(CSS_INPUT) -o $(CSS_OUTPUT) --minify
 
 # Build the binary
 build: templ tailwind
@@ -39,7 +42,7 @@ build: templ tailwind
 
 # Development mode with file watching
 dev: install-deps
-	fd 'go|templ|base.css' | entr -r bash -c 'templ generate && go build -o /tmp/njump && TAILWIND_DEBUG=true PORT=3001 /tmp/njump'
+	fd 'go|templ|base.css' | entr -r bash -c '$(TEMPL_CMD) generate && go build -o /tmp/njump && TAILWIND_DEBUG=true PORT=3001 /tmp/njump'
 
 # Deploy to target server (usage: make deploy TARGET=user@host)
 deploy: templ tailwind
