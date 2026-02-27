@@ -9,7 +9,7 @@ TEMPL_GO_FILES := $(TEMPL_FILES:.templ=_templ.go)
 GO_FILES := $(wildcard *.go)
 CSS_INPUT := base.css
 CSS_OUTPUT := static/tailwind-bundle.min.css
-TAILWIND_BIN := node_modules/.bin/tailwind
+TAILWIND_CLI := node_modules/tailwindcss/lib/cli.js
 TEMPL_CMD := go run github.com/a-h/templ/cmd/templ@v0.3.960
 
 # Build timestamp for cache busting
@@ -30,11 +30,11 @@ templ:
 # Generate tailwind CSS
 tailwind: $(CSS_OUTPUT)
 
-$(TAILWIND_BIN): package.json
+$(TAILWIND_CLI): package.json
 	npm install
 
-$(CSS_OUTPUT): $(CSS_INPUT) tailwind.config.js $(TEMPL_FILES) $(TAILWIND_BIN)
-	$(TAILWIND_BIN) -i $(CSS_INPUT) -o $(CSS_OUTPUT) --minify
+$(CSS_OUTPUT): $(CSS_INPUT) tailwind.config.js $(TEMPL_FILES) $(TAILWIND_CLI)
+	node ./$(TAILWIND_CLI) -i $(CSS_INPUT) -o $(CSS_OUTPUT) --minify
 
 # Build the binary
 build: templ tailwind

@@ -24,7 +24,7 @@ prettier:
     prettier -w templates/*.html
 
 tailwind:
-    tailwind -i base.css -o static/tailwind-bundle.min.css --minify
+    node ./node_modules/tailwindcss/lib/cli.js -i base.css -o static/tailwind-bundle.min.css --minify
 
 check-samples:
     #!/usr/bin/env xonsh
