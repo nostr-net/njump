@@ -57,6 +57,41 @@ func init() {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 }
 
+func staticFileServer(fs http.FileSystem) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		ext := ""
+		if idx := strings.LastIndex(path, "."); idx >= 0 {
+			ext = strings.ToLower(path[idx:])
+		}
+
+		switch ext {
+		case ".css":
+			w.Header().Set("Content-Type", "text/css; charset=utf-8")
+		case ".js":
+			w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		case ".png":
+			w.Header().Set("Content-Type", "image/png")
+		case ".jpg", ".jpeg":
+			w.Header().Set("Content-Type", "image/jpeg")
+		case ".svg":
+			w.Header().Set("Content-Type", "image/svg+xml")
+		case ".ico":
+			w.Header().Set("Content-Type", "image/x-icon")
+		case ".woff":
+			w.Header().Set("Content-Type", "font/woff")
+		case ".woff2":
+			w.Header().Set("Content-Type", "font/woff2")
+		case ".ttf":
+			w.Header().Set("Content-Type", "font/ttf")
+		case ".eot":
+			w.Header().Set("Content-Type", "application/vnd.ms-fontobject")
+		}
+
+		http.FileServer(fs).ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	err := envconfig.Process("", &s)
 	if err != nil {
@@ -169,7 +204,7 @@ func main() {
 
 	// routes
 	mux := relay.Router()
-	mux.Handle("/njump/static/", http.StripPrefix("/njump/", http.FileServer(http.FS(static))))
+	mux.Handle("/njump/static/", http.StripPrefix("/njump/", staticFileServer(http.FS(static))))
 
 	sub := http.NewServeMux()
 	sub.HandleFunc("/services/oembed", renderOEmbed)
