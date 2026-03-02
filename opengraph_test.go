@@ -80,6 +80,35 @@ func makeRequest(t *testing.T, path string, ua string) *OpengraphFields {
 	return og
 }
 
+func TestDomainRoutingFromHostHeader(t *testing.T) {
+	origConfigs := domainConfigs
+	t.Cleanup(func() { domainConfigs = origConfigs })
+	domainConfigs = map[string]DomainConfig{
+		"nostr.ae": {DefaultLanguage: "ar"},
+		"nostr.at": {DefaultLanguage: "en"},
+	}
+
+	for _, tc := range []struct {
+		host string
+	}{
+		{"nostr.ae"},
+		{"nostr.at"},
+		{"www.nostr.ae"},
+	} {
+		t.Run(tc.host, func(t *testing.T) {
+			r := httptest.NewRequest("GET", "/", nil)
+			r.Host = tc.host
+			w := httptest.NewRecorder()
+
+			languageMiddleware(renderEvent)(w, r)
+
+			if w.Code != 200 {
+				t.Fatalf("host %s: expected 200, got %d", tc.host, w.Code)
+			}
+		})
+	}
+}
+
 func parseHead(resp io.Reader, og *OpengraphFields) error {
 	doc, err := goquery.NewDocumentFromReader(resp)
 	if err != nil {
