@@ -91,7 +91,7 @@ func timeoutMiddleware(next http.HandlerFunc) http.HandlerFunc {
 					retryTemplate(RetryPageParams{
 						HeadParams: HeadParams{
 							Lang:   i18n.LanguageFromContext(r.Context()),
-							Domain: s.Domain,
+							Domain: domainFromCtx(r.Context()),
 						},
 					}).Render(r.Context(), w)
 				}

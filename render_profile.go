@@ -99,7 +99,7 @@ func renderProfile(ctx context.Context, r *http.Request, w http.ResponseWriter, 
 		var buf bytes.Buffer
 		buf.WriteString(XML_HEADER)
 		err = SitemapTemplate.Render(&buf, &SitemapPage{
-			Host:       s.Domain,
+			Host:       domainFromCtx(r.Context()),
 			ModifiedAt: createdAt,
 			Metadata:   profile,
 			LastNotes:  lastNotes,
@@ -113,7 +113,7 @@ func renderProfile(ctx context.Context, r *http.Request, w http.ResponseWriter, 
 		var buf bytes.Buffer
 		buf.WriteString(XML_HEADER)
 		err = RSSTemplate.Render(&buf, &RSSPage{
-			Host:       s.Domain,
+			Host:       domainFromCtx(r.Context()),
 			ModifiedAt: createdAt,
 			Metadata:   profile,
 			LastNotes:  lastNotes,
@@ -130,7 +130,7 @@ func renderProfile(ctx context.Context, r *http.Request, w http.ResponseWriter, 
 			HeadParams: HeadParams{
 				IsProfile: true,
 				Lang:      i18n.LanguageFromContext(ctx),
-				Domain:    s.Domain,
+				Domain:    domainFromCtx(r.Context()),
 			},
 			Details: DetailsParams{
 				HideDetails:     true,

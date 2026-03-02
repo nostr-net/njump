@@ -14,7 +14,7 @@ func renderHomepage(w http.ResponseWriter, r *http.Request) {
 			IsProfile: false,
 			Lang:      i18n.LanguageFromContext(r.Context()),
 		},
-		Domain: s.Domain,
+		Domain: domainFromCtx(r.Context()),
 	}).Render(r.Context(), w)
 	if err != nil {
 		log.Warn().Err(err).Msg("error rendering tmpl")

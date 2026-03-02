@@ -77,7 +77,7 @@ func renderRelayPage(w http.ResponseWriter, r *http.Request) {
 		var buf bytes.Buffer
 		buf.WriteString(XML_HEADER)
 		err = SitemapTemplate.Render(&buf, &SitemapPage{
-			Host:          s.Domain,
+			Host:          domainFromCtx(r.Context()),
 			ModifiedAt:    lastEventAt.Format("2006-01-02T15:04:05Z07:00"),
 			LastNotes:     renderableLastNotes,
 			RelayHostname: hostname,
@@ -93,7 +93,7 @@ func renderRelayPage(w http.ResponseWriter, r *http.Request) {
 		var buf bytes.Buffer
 		buf.WriteString(XML_HEADER)
 		err = RSSTemplate.Render(&buf, &RSSPage{
-			Host:          s.Domain,
+			Host:          domainFromCtx(r.Context()),
 			ModifiedAt:    lastEventAt.Format("2006-01-02T15:04:05Z07:00"),
 			LastNotes:     renderableLastNotes,
 			RelayHostname: hostname,
@@ -108,7 +108,7 @@ func renderRelayPage(w http.ResponseWriter, r *http.Request) {
 			HeadParams: HeadParams{
 				IsProfile: false,
 				Lang:      i18n.LanguageFromContext(r.Context()),
-				Domain:    s.Domain,
+				Domain:    domainFromCtx(r.Context()),
 			},
 			Info:       info,
 			Hostname:   hostname,
