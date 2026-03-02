@@ -30,6 +30,13 @@ func requestPath(ctx context.Context) string {
 	return "/"
 }
 
+func domainFromCtx(ctx context.Context) string {
+	if val, ok := ctx.Value("domain").(string); ok && val != "" {
+		return val
+	}
+	return s.Domain
+}
+
 func availableLanguages() []i18n.LanguageOption {
 	return i18n.GetAvailableLanguages()
 }

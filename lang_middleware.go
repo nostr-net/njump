@@ -39,8 +39,13 @@ func languageMiddleware(next http.HandlerFunc) http.HandlerFunc {
 				source = "header"
 			}
 		}
+		host := r.Host
+		if i := strings.Index(host, ":"); i != -1 {
+			host = host[:i]
+		}
+		host = strings.TrimPrefix(host, "www.")
 		if raw == "" {
-			raw = s.DefaultLanguage
+			raw = defaultLangForDomain(host)
 			source = "default"
 		}
 		lang = strings.ToLower(raw)
@@ -59,6 +64,7 @@ func languageMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		ctx := i18n.WithLanguage(r.Context(), lang)
 		ctx = context.WithValue(ctx, "requestPath", r.URL.Path)
 		ctx = context.WithValue(ctx, "isRTL", rtlLanguages[lang])
+		ctx = context.WithValue(ctx, "domain", host)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"testing"
 )
@@ -28,6 +29,22 @@ func TestDefaultLangForDomain_UnknownDomain_FallsBackToGlobal(t *testing.T) {
 	s.DefaultLanguage = "en"
 	if got := defaultLangForDomain("unknown.example"); got != "en" {
 		t.Fatalf("want en (global fallback), got %s", got)
+	}
+}
+
+func TestDomainFromCtx_ReturnsDomainSetInContext(t *testing.T) {
+	ctx := context.WithValue(context.Background(), "domain", "nostr.ae")
+	if got := domainFromCtx(ctx); got != "nostr.ae" {
+		t.Fatalf("want nostr.ae, got %s", got)
+	}
+}
+
+func TestDomainFromCtx_FallsBackToGlobalDomain(t *testing.T) {
+	origDomain := s.Domain
+	t.Cleanup(func() { s.Domain = origDomain })
+	s.Domain = "njump.me"
+	if got := domainFromCtx(context.Background()); got != "njump.me" {
+		t.Fatalf("want njump.me (global fallback), got %s", got)
 	}
 }
 
