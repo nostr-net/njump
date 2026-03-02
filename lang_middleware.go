@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"regexp"
 	"strings"
@@ -40,8 +41,8 @@ func languageMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			}
 		}
 		host := r.Host
-		if i := strings.Index(host, ":"); i != -1 {
-			host = host[:i]
+		if h, _, err := net.SplitHostPort(host); err == nil {
+			host = h
 		}
 		host = strings.TrimPrefix(host, "www.")
 		if raw == "" {
