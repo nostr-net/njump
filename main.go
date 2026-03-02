@@ -22,6 +22,7 @@ type Settings struct {
 	Port                     string `envconfig:"PORT" default:"2999"`
 	Domain                   string `envconfig:"DOMAIN" default:"njump.me"`
 	DefaultLanguage          string `envconfig:"DEFAULT_LANGUAGE" default:"en"`
+	DomainConfigPath         string `envconfig:"DOMAIN_CONFIG_PATH"`
 	ServiceURL               string `envconfig:"SERVICE_URL"`
 	InternalDBPath           string `envconfig:"DISK_CACHE_PATH" default:"/tmp/njump-internal"`
 	EventStorePath           string `envconfig:"EVENT_STORE_PATH" default:"/tmp/njump-db"`
@@ -105,6 +106,13 @@ func main() {
 		s.trustedPubKeys = make([]nostr.PubKey, len(s.TrustedPubKeysHex))
 		for i, pkhex := range s.TrustedPubKeysHex {
 			s.trustedPubKeys[i] = nostr.MustPubKeyFromHex(pkhex)
+		}
+	}
+
+	if s.DomainConfigPath != "" {
+		if err := loadDomainConfigs(s.DomainConfigPath); err != nil {
+			log.Fatal().Err(err).Msg("failed to load domain config")
+			return
 		}
 	}
 
