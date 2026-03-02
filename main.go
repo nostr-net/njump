@@ -99,10 +99,6 @@ func main() {
 		log.Fatal().Err(err).Msg("couldn't process envconfig")
 		return
 	} else {
-		if canonicalHost := os.Getenv("CANONICAL_HOST"); canonicalHost != "" {
-			s.Domain = canonicalHost
-		}
-
 		s.trustedPubKeys = make([]nostr.PubKey, len(s.TrustedPubKeysHex))
 		for i, pkhex := range s.TrustedPubKeysHex {
 			s.trustedPubKeys[i] = nostr.MustPubKeyFromHex(pkhex)
