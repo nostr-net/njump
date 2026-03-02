@@ -106,7 +106,7 @@ func renderEvent(w http.ResponseWriter, r *http.Request) {
 	// gather host
 	host := r.Header.Get("X-Forwarded-Host")
 	if host == "" {
-		host = r.Host
+		host = domainFromCtx(ctx)
 	}
 
 	useTextImage := false

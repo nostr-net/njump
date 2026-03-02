@@ -53,6 +53,9 @@ func renderOEmbed(w http.ResponseWriter, r *http.Request) {
 	}
 
 	host := r.Header.Get("X-Forwarded-Host")
+	if host == "" {
+		host = domainFromCtx(ctx)
+	}
 
 	data, err := grabData(ctx, code)
 	if err != nil {
