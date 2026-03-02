@@ -16,7 +16,12 @@ func loadDomainConfigs(path string) error {
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(data, &domainConfigs)
+	var cfg map[string]DomainConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return err
+	}
+	domainConfigs = cfg
+	return nil
 }
 
 func defaultLangForDomain(domain string) string {
