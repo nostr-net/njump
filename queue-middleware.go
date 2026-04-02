@@ -19,13 +19,7 @@ type queuedReq struct {
 	r *http.Request
 }
 
-var buckets = func() [52]*semaphore.Weighted {
-	var s [52]*semaphore.Weighted
-	for i := range s {
-		s[i] = semaphore.NewWeighted(1)
-	}
-	return s
-}()
+var buckets []*semaphore.Weighted
 
 var (
 	queueAcquireTimeoutError          = errors.New("QAT")
@@ -37,6 +31,16 @@ var (
 var inCourse = xsync.NewMapOfWithHasher[uint64, struct{}](
 	func(key uint64, seed uint64) uint64 { return key },
 )
+
+func initQueueBuckets(size int) {
+	if size < 1 {
+		size = 1
+	}
+	buckets = make([]*semaphore.Weighted, 52)
+	for i := range buckets {
+		buckets[i] = semaphore.NewWeighted(int64(size))
+	}
+}
 
 func await(ctx context.Context) {
 	val := ctx.Value("ticket")

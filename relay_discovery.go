@@ -52,11 +52,14 @@ func startRelayDiscoveryLoop(ctx context.Context) {
 func refreshRelayPoolsFromNostrWatch(ctx context.Context) error {
 	discoveryRelays, source, err := discoverRelayURLs(ctx)
 	if err != nil {
+		setRelayDiscoveryCandidateCount("error", 0)
 		return err
 	}
 	if len(discoveryRelays) == 0 {
+		setRelayDiscoveryCandidateCount(source, 0)
 		return fmt.Errorf("discovery source %q returned no relays", source)
 	}
+	setRelayDiscoveryCandidateCount(source, len(discoveryRelays))
 
 	existing := normalizeRelayURLs(sys.FallbackRelays.URLs, 0)
 	merged := mergeRelayPools(existing, discoveryRelays, s.RelayDiscoveryMaxRelays)
@@ -105,8 +108,10 @@ func discoverRelayURLs(ctx context.Context) ([]string, string, error) {
 	}
 
 	if len(wsRelays) > 0 {
+		log.Info().Str("sources", strings.Join(wsRelays, ",")).Msg("trying relay discovery via NIP-66 websockets")
 		relays, err := discoverRelayURLsViaNip66(ctx, wsRelays)
 		if err == nil {
+			log.Info().Int("relays", len(relays)).Str("source", strings.Join(wsRelays, ",")).Msg("relay discovery returned relay candidates")
 			return relays, strings.Join(wsRelays, ","), nil
 		}
 		log.Warn().Err(err).Str("sources", strings.Join(wsRelays, ",")).Msg("NIP-66 relay discovery failed")
@@ -117,6 +122,9 @@ func discoverRelayURLs(ctx context.Context) ([]string, string, error) {
 
 	if len(httpRelays) > 1 {
 		log.Warn().Str("primary", httpRelays[0]).Msg("multiple HTTP discovery URLs found; using first for discovery")
+	}
+	if len(httpRelays) > 0 {
+		log.Info().Str("source", httpRelays[0]).Msg("trying relay discovery via HTTP endpoint")
 	}
 	relays, err := discoverRelayURLsViaHTTP(ctx, httpRelays[0])
 	return relays, httpRelays[0], err

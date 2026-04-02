@@ -25,6 +25,7 @@ type Settings struct {
 	DomainConfigPath         string `envconfig:"DOMAIN_CONFIG_PATH"`
 	RequestTimeoutMs         int    `envconfig:"REQUEST_TIMEOUT_MS" default:"10000"`
 	QueueAcquireTimeoutMs    int    `envconfig:"QUEUE_ACQUIRE_TIMEOUT_MS" default:"6000"`
+	QueueBucketSize          int    `envconfig:"QUEUE_BUCKET_SIZE" default:"1"`
 	RelayBlacklist           string `envconfig:"RELAY_BLACKLIST"`
 	EnableQueueMiddleware    bool   `envconfig:"ENABLE_QUEUE_MIDDLEWARE" default:"false"`
 	EventStoreMapSizeGB      int    `envconfig:"EVENT_STORE_MAP_SIZE_GB" default:"0"`
@@ -115,6 +116,7 @@ func main() {
 			s.trustedPubKeys[i] = nostr.MustPubKeyFromHex(pkhex)
 		}
 	}
+	initQueueBuckets(s.QueueBucketSize)
 
 	configureRelayBlacklist(s.RelayBlacklist)
 	globalErrorFile = s.ErrorLogPath

@@ -61,6 +61,14 @@ var (
 		[]string{"outcome"},
 	)
 
+	relayDiscoveryCandidateCount = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "njump_relay_discovery_candidates",
+			Help: "Number of relay candidates discovered from each source.",
+		},
+		[]string{"source"},
+	)
+
 	relayPoolSize = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "njump_relay_pool_size",
@@ -86,6 +94,7 @@ func init() {
 		timeoutTotal,
 		queueOutcomeTotal,
 		relayDiscoveryRunsTotal,
+		relayDiscoveryCandidateCount,
 		relayPoolSize,
 		buildInfo,
 	)
@@ -93,6 +102,17 @@ func init() {
 
 func recordRelayDiscoveryRun(outcome string) {
 	relayDiscoveryRunsTotal.WithLabelValues(outcome).Inc()
+}
+
+func setRelayDiscoveryCandidateCount(source string, count int) {
+	label := source
+	if label == "" {
+		label = "unknown"
+	}
+	if len(label) > 128 {
+		label = label[:128]
+	}
+	relayDiscoveryCandidateCount.WithLabelValues(label).Set(float64(count))
 }
 
 func setRelayPoolSize(pool string, size int) {
