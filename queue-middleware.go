@@ -42,6 +42,25 @@ func initQueueBuckets(size int) {
 	}
 }
 
+func queueKey(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+
+	host := metricsDomainLabel(r)
+	path := r.URL.Path
+	if path == "/services/oembed" {
+		if code, err := oembedTargetCode(r); err == nil && code != "" {
+			return host + ":oembed:" + code
+		}
+		if target := strings.TrimSpace(r.URL.Query().Get("url")); target != "" {
+			return host + ":oembed-url:" + target
+		}
+	}
+
+	return host + ":" + path
+}
+
 func await(ctx context.Context) {
 	val := ctx.Value("ticket")
 	if val == nil {
@@ -105,7 +124,7 @@ func queueMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		reqNum := reqNumSource.Add(1)
 
 		// these will be used when we later call await(ctx)
-		ticket := int(fnv1a.HashString64(r.URL.Path) % uint64(len(buckets)))
+		ticket := int(fnv1a.HashString64(queueKey(r)) % uint64(len(buckets)))
 		ctx := context.WithValue(
 			context.WithValue(
 				context.WithValue(

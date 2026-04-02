@@ -37,15 +37,41 @@ type OEmbedResponse struct {
 	HTML string `json:"html,omitempty" xml:"html,omitempty"`
 }
 
+func oembedTargetCode(r *http.Request) (string, error) {
+	if r == nil {
+		return "", fmt.Errorf("missing request")
+	}
+
+	target := strings.TrimSpace(r.URL.Query().Get("url"))
+	if target == "" {
+		return "", fmt.Errorf("missing url parameter")
+	}
+
+	targetURL, err := url.Parse(target)
+	if err != nil {
+		return "", err
+	}
+
+	code := strings.Trim(targetURL.Path, "/")
+	if code == "" {
+		return "", fmt.Errorf("missing oembed target code")
+	}
+
+	if slash := strings.IndexByte(code, '/'); slash >= 0 {
+		code = code[:slash]
+	}
+
+	return code, nil
+}
+
 func renderOEmbed(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	targetURL, err := url.Parse(r.URL.Query().Get("url"))
+	code, err := oembedTargetCode(r)
 	if err != nil {
 		http.Error(w, i18n.Translate(ctx, "error.invalid_url", map[string]any{"err": err.Error()}), 400)
 		return
 	}
-	code := strings.Split(targetURL.Path, "/")[1]
 
 	if !strings.HasPrefix(code, "nevent1") {
 		http.Error(w, i18n.Translate(ctx, "error.oembed_nevent_only", map[string]any{"code": code}), 400)
