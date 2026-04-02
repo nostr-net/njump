@@ -54,11 +54,20 @@ These are the defaults that you can change by setting environment variables in y
 ```
 PORT="2999"
 DOMAIN="njump.me"
+DOMAIN_CONFIG_PATH=
 DISK_CACHE_PATH="/tmp/njump-internal"
 EVENT_STORE_PATH="/tmp/njump-db"
+EVENT_STORE_MAP_SIZE_GB="0"
+CACHE_RETENTION_DAYS="13"
 TAILWIND_DEBUG=
 RELAY_CONFIG_PATH=
 CLIENTS_CONFIG_PATH=
+ENABLE_RELAY_DISCOVERY="false"
+RELAY_DISCOVERY_URL="wss://relay.nostr.watch,wss://relaypag.es,wss://monitorlizard.nostr1.com"
+RELAY_DISCOVERY_MAX_RELAYS="24"
+RELAY_DISCOVERY_REFRESH_SECONDS="900"
+RELAY_DISCOVERY_TIMEOUT_MS="3000"
+ENABLE_QUEUE_MIDDLEWARE="false"
 METADATA_FETCH_CONCURRENCY="8"
 METADATA_FETCH_TIMEOUT_MS="4000"
 TRUSTED_PUBKEYS=npub1...,npub1...
@@ -81,9 +90,26 @@ See `relay-config.json.sample` for example.
 
 For example, when running from a precompiled binary you can do something like `PORT=5000 ./njump`.
 
+`ENABLE_RELAY_DISCOVERY` enables periodic relay discovery for fallback relay pool refresh.
+
+`RELAY_DISCOVERY_URL` accepts comma-separated relay discovery sources.
+- If it starts with `ws://` or `wss://`, it is treated as a NIP-66 websocket source.
+- If it starts with `http://` or `https://`, it is treated as the legacy fallback API (for compatibility with older nostr.watch formats).
+- The NIP-66 websocket sources are the default and preferred discovery path.
+
 ---
 
 `CLIENTS_CONFIG_PATH` is path to json file to update the clients list. You can find the default at [/clients.json](./clients.json)
+
+`DOMAIN_CONFIG_PATH` is an optional JSON file keyed by host name. It lets one `njump` process serve multiple domains with host-specific defaults. See [`domain-config.json.sample`](./domain-config.json.sample).
+
+`EVENT_STORE_MAP_SIZE_GB` overrides the LMDB map size for the event cache. Leave it at `0` to use the upstream default, or set it explicitly in production to keep cache growth within the disk budget of the host.
+
+`CACHE_RETENTION_DAYS` controls how long cached events are kept before periodic cleanup removes old, cold entries. This reduces regrowth after a cache rebuild, but LMDB file size only shrinks after compaction or a full cache rebuild.
+
+For a shared multi-domain deployment, see [`ops/njump.service.sample`](./ops/njump.service.sample), [`ops/config.env.sample`](./ops/config.env.sample), and [`domain-config.json.sample`](./domain-config.json.sample).
+
+If central Prometheus cannot reach the local `njump` ports directly, see [`ops/nginx-metrics.conf.sample`](./ops/nginx-metrics.conf.sample) for an nginx reverse-proxy that exposes the metrics on a single IP-based port with source-IP allowlisting.
 
 ## Translations
 

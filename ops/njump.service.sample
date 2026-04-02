@@ -1,0 +1,42 @@
+[Unit]
+Description=njump multi-domain gateway
+After=network.target
+
+[Service]
+Type=simple
+User=njump
+Group=njump
+WorkingDirectory=/var/lib/njump/shared
+
+ExecStart=/opt/njump/njump
+
+EnvironmentFile=/etc/njump/shared/config.env
+Environment=DOMAIN_CONFIG_PATH=/etc/njump/shared/domain-config.json
+Environment=RELAY_CONFIG_PATH=/etc/njump/shared/relay-config.json
+Environment=CLIENTS_CONFIG_PATH=/etc/njump/shared/clients.json
+Environment=EVENT_STORE_PATH=/var/lib/njump/shared/db
+Environment=DISK_CACHE_PATH=/var/lib/njump/shared/internal
+Environment=KV_STORE_PATH=/var/lib/njump/shared/kv.db
+Environment=HINTS_SAVE_PATH=/var/lib/njump/shared/hints.json
+Environment=ERROR_LOG_PATH=/var/log/njump/shared-errors.jsonl
+
+StandardOutput=append:/var/log/njump/shared.log
+StandardError=append:/var/log/njump/shared.log
+
+Restart=always
+RestartSec=5
+
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/njump/shared /var/log/njump /etc/njump/shared
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictRealtime=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

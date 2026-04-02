@@ -1,0 +1,13 @@
+{
+  "nostr.ae": {
+    "defaultLanguage": "ar",
+    "allowedLanguages": ["ar", "en", "he", "tr", "fa"]
+  },
+  "nostr.at": {
+    "defaultLanguage": "en",
+    "allowedLanguages": ["en", "es", "pt"]
+  },
+  "nostr.eu": {
+    "defaultLanguage": "en"
+  }
+}

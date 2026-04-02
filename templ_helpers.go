@@ -37,8 +37,8 @@ func domainFromCtx(ctx context.Context) string {
 	return s.Domain
 }
 
-func availableLanguages() []i18n.LanguageOption {
-	return i18n.GetAvailableLanguages()
+func availableLanguages(ctx context.Context) []i18n.LanguageOption {
+	return i18n.GetAvailableLanguagesForAllowed(allowedLanguagesForDomain(domainFromCtx(ctx)))
 }
 
 func typewriterScript(ctx context.Context) string {
@@ -79,14 +79,14 @@ func typewriterScript(ctx context.Context) string {
 		"home.typewriter.for_you",
 		"home.typewriter.dots",
 	}
-	
+
 	strings := []string{""}
 	for _, key := range keys {
 		strings = append(strings, t(ctx, key))
 	}
-	
+
 	stringsJSON, _ := json.Marshal(strings)
-	
+
 	return fmt.Sprintf(`<script>
 var tw = document.getElementById('tw')
 new Typewriter(tw, {

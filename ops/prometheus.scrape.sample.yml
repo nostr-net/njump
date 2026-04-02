@@ -1,0 +1,26 @@
+scrape_configs:
+  - job_name: "njump-us"
+    scrape_interval: 15s
+    metrics_path: /metrics/shared
+    static_configs:
+      - targets: ["nostr-net-us:80"]
+        labels:
+          app: njump
+          region: us
+          env: prod
+
+  - job_name: "njump-sg"
+    scrape_interval: 15s
+    metrics_path: /metrics/shared
+    static_configs:
+      - targets: ["nostr-net-sg:80"]
+        labels:
+          app: njump
+          region: sg
+          env: prod
+
+# Example PromQL after the switch:
+#
+# sum by (region, domain, path, status) (rate(njump_http_requests_total[5m]))
+# sum by (region, domain, path) (rate(njump_timeouts_total[5m]))
+# sum by (region, domain, outcome) (rate(njump_queue_outcomes_total[5m]))

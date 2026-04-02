@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -69,5 +70,41 @@ func TestLoadDomainConfigs_ParsesJSON(t *testing.T) {
 	}
 	if got := defaultLangForDomain("nostr.eu"); got != "de" {
 		t.Fatalf("want de, got %s", got)
+	}
+}
+
+func TestAllowedLanguagesForDomain_UsesPerDomainConfig(t *testing.T) {
+	orig := domainConfigs
+	t.Cleanup(func() { domainConfigs = orig })
+
+	domainConfigs = map[string]DomainConfig{
+		"nostr.ae": {
+			DefaultLanguage:  "ar",
+			AllowedLanguages: []string{"ar", "en", "he"},
+		},
+	}
+
+	want := []string{"ar", "en", "he"}
+	if got := allowedLanguagesForDomain("nostr.ae"); !reflect.DeepEqual(got, want) {
+		t.Fatalf("want %v, got %v", want, got)
+	}
+}
+
+func TestIsLanguageAllowedForDomain_RejectsDomainRestrictedLanguage(t *testing.T) {
+	orig := domainConfigs
+	t.Cleanup(func() { domainConfigs = orig })
+
+	domainConfigs = map[string]DomainConfig{
+		"nostr.at": {
+			DefaultLanguage:  "en",
+			AllowedLanguages: []string{"en", "es", "pt"},
+		},
+	}
+
+	if isLanguageAllowedForDomain("nostr.at", "ar") {
+		t.Fatal("expected ar to be rejected for nostr.at")
+	}
+	if !isLanguageAllowedForDomain("nostr.at", "es") {
+		t.Fatal("expected es to be allowed for nostr.at")
 	}
 }

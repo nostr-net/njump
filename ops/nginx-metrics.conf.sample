@@ -1,0 +1,63 @@
+# Expose local njump Prometheus endpoints through nginx on a single TCP port.
+#
+# This is intended for environments where the monitoring system cannot reach
+# the njump service ports directly, but can reach one dedicated nginx port.
+#
+# Important:
+# - Do not use port 9100 here; that is reserved for node_exporter.
+# - This server is accessed by IP, not by DNS host name, so server_name is "_".
+# - Access is restricted to the Prometheus source IP only.
+# - In multi-domain shared-process mode, prefer scraping /metrics/shared once.
+#   The application metrics include a `domain` label, so per-domain nginx
+#   scrape paths are redundant and will duplicate process-wide counters.
+#
+# Example scrape targets:
+# - http://nostr-net-us:9101/metrics/shared
+# - http://nostr-net-sg:9101/metrics/shared
+
+server {
+    listen 9101;
+    listen [::]:9101;
+    server_name _;
+
+    access_log /var/log/nginx/njump-metrics.access.log;
+    error_log /var/log/nginx/njump-metrics.error.log warn;
+
+    allow 195.201.169.47;
+    deny all;
+
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_connect_timeout 2s;
+    proxy_read_timeout 8s;
+    proxy_send_timeout 8s;
+
+    location = /healthz {
+        return 200 "ok\n";
+        add_header Content-Type text/plain;
+    }
+
+    location = /metrics/shared {
+        proxy_pass http://127.0.0.1:3000/metrics;
+    }
+
+    location = /metrics/nostr-eu {
+        proxy_pass http://127.0.0.1:3000/metrics;
+    }
+
+    location = /metrics/nostr-ae {
+        proxy_pass http://127.0.0.1:3000/metrics;
+    }
+
+    location = /metrics/nostr-at {
+        proxy_pass http://127.0.0.1:3000/metrics;
+    }
+
+    location = /metrics {
+        default_type text/plain;
+        return 200 "available paths:\n/metrics/shared\n/metrics/nostr-eu\n/metrics/nostr-ae\n/metrics/nostr-at\n";
+    }
+}

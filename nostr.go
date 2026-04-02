@@ -74,6 +74,9 @@ func initSystem() func() {
 	db := &lmdb.LMDBBackend{
 		Path: s.EventStorePath,
 	}
+	if s.EventStoreMapSizeGB > 0 {
+		db.MapSize = int64(s.EventStoreMapSizeGB) << 30
+	}
 	if err := db.Init(); err != nil {
 		log.Fatal().Err(err).Msg("failed to init eventstore")
 		return func() {}
@@ -105,8 +108,31 @@ func initSystem() func() {
 		"wss://cache2.primal.net/v1",
 		"wss://relay.nostr.band",
 	)
+	applyRelayConfig(relayConfig)
 
 	return db.Close
+}
+
+func applyRelayConfig(cfg RelayConfig) {
+	if len(cfg.Everything) > 0 {
+		sys.FallbackRelays = sdk.NewRelayStream(filterRelayList(cfg.Everything)...)
+	}
+	if len(cfg.Profiles) > 0 {
+		profiles := filterRelayList(cfg.Profiles)
+		sys.MetadataRelays = sdk.NewRelayStream(profiles...)
+		sys.RelayListRelays = sdk.NewRelayStream(profiles...)
+		sys.FollowListRelays = sdk.NewRelayStream(profiles...)
+	}
+	if len(cfg.JustIds) > 0 {
+		sys.JustIDRelays = sdk.NewRelayStream(filterRelayList(cfg.JustIds)...)
+	}
+
+	setRelayPoolSize("fallback", len(sys.FallbackRelays.URLs))
+	setRelayPoolSize("metadata", len(sys.MetadataRelays.URLs))
+	setRelayPoolSize("followlist", len(sys.FollowListRelays.URLs))
+	setRelayPoolSize("justids", len(sys.JustIDRelays.URLs))
+
+	log.Info().Int("fallback_relays", len(sys.FallbackRelays.URLs)).Int("metadata_relays", len(sys.MetadataRelays.URLs)).Int("justid_relays", len(sys.JustIDRelays.URLs)).Msg("relay pools configured")
 }
 
 func getEvent(ctx context.Context, code string) (*nostr.Event, error) {

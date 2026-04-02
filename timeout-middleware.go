@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -47,34 +48,42 @@ func (tw *timeoutResponseWriter) markTimedOut() {
 
 func timeoutMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		if isMetricsPath(r.URL.Path) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), requestTimeoutDuration())
 		defer cancel()
 
 		tw := &timeoutResponseWriter{ResponseWriter: w}
 		done := make(chan struct{})
-		panicChan := make(chan interface{}, 1)
-
 		go func() {
+			defer close(done)
 			defer func() {
 				if err := recover(); err != nil {
-					panicChan <- err
+					recordPanic(r, "timeout")
+					trace := trackError(r, err)
+					log.Error().
+						Any("panic", err).
+						Str("path", r.URL.Path).
+						Bytes("stack", debug.Stack()).
+						Msg("panic recovered in timeout middleware")
+					writeInternalServerError(tw, r, trace)
 				}
 			}()
 
 			next.ServeHTTP(tw, r.WithContext(ctx))
-			close(done)
 		}()
 
 		select {
-		case p := <-panicChan:
-			// Panic occurred, re-panic in main goroutine
-			panic(p)
 		case <-done:
 			// Request completed successfully
 			return
 		case <-ctx.Done():
 			// Timeout reached
 			tw.markTimedOut()
+			recordTimeout(r)
 			if ctx.Err() == context.DeadlineExceeded {
 				// Only write retry page if handler hasn't written anything yet
 				tw.mu.Lock()
@@ -98,4 +107,12 @@ func timeoutMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			}
 		}
 	}
+}
+
+func requestTimeoutDuration() time.Duration {
+	timeout := time.Duration(s.RequestTimeoutMs) * time.Millisecond
+	if timeout <= 0 {
+		timeout = 10 * time.Second
+	}
+	return timeout
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"net"
 	"net/http"
 	"regexp"
 	"strings"
@@ -14,7 +13,7 @@ var langRegex = regexp.MustCompile("^[a-z]{2}$")
 
 var rtlLanguages = map[string]bool{
 	"ar": true, // Arabic
-	"he": true, // Hebrew  
+	"he": true, // Hebrew
 	"fa": true, // Persian/Farsi
 	"ur": true, // Urdu
 }
@@ -40,11 +39,7 @@ func languageMiddleware(next http.HandlerFunc) http.HandlerFunc {
 				source = "header"
 			}
 		}
-		host := r.Host
-		if h, _, err := net.SplitHostPort(host); err == nil {
-			host = h
-		}
-		host = strings.TrimPrefix(host, "www.")
+		host := metricsDomainLabel(r)
 		if raw == "" {
 			raw = defaultLangForDomain(host)
 			source = "default"
@@ -54,10 +49,14 @@ func languageMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			lang = lang[:i]
 		}
 		if !langRegex.MatchString(lang) {
-			lang = s.DefaultLanguage
+			lang = defaultLangForDomain(host)
+		}
+		if !isLanguageAllowedForDomain(host, lang) {
+			lang = defaultLangForDomain(host)
 		}
 		log.Debug().
 			Str("source", source).
+			Str("host", host).
 			Str("raw", raw).
 			Str("lang", lang).
 			Str("Accept-Language", r.Header.Get("Accept-Language")).

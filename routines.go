@@ -37,7 +37,11 @@ func deleteOldCachedEvents(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-time.After(time.Hour * 6):
-			threshold := nostr.Now() - 60*60*24*13
+			retentionDays := s.CacheRetentionDays
+			if retentionDays < 1 {
+				retentionDays = 1
+			}
+			threshold := nostr.Now() - nostr.Timestamp(60*60*24*retentionDays)
 			log.Debug().Time("threshold", threshold.Time()).Msg("deleting old cached events")
 			for evt := range sys.Store.QueryEvents(nostr.Filter{Until: threshold}, 999999) {
 				id := evt.ID

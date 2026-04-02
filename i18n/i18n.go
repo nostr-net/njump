@@ -11,8 +11,8 @@ import (
 
 	goi18n "github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/pelletier/go-toml"
-	"github.com/rs/zerolog/log"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/text/language"
 )
 
@@ -29,7 +29,7 @@ func isLanguageAllowed(langTag string) bool {
 	if allowedLangs == "" {
 		return true // if not set, allow all languages
 	}
-	
+
 	// split by comma and check if langTag is in the list
 	for _, allowed := range strings.Split(allowedLangs, ",") {
 		if strings.TrimSpace(allowed) == langTag {
@@ -45,10 +45,14 @@ func init() {
 	bundle = goi18n.NewBundle(language.English)
 	bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
 	bundle.RegisterUnmarshalFunc("json", json.Unmarshal)
+	localesPath := os.Getenv("LOCALE_PATH")
+	if localesPath == "" {
+		localesPath = "locales"
+	}
 	// load translation files from locales directory (support mapping JSON and go-i18n V2 files)
-	filepath.WalkDir("locales", func(path string, d fs.DirEntry, err error) error {
+	filepath.WalkDir(localesPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			log.Warn().Err(err).Str("path", path).Msg("i18n: error walking locale files")
+			log.Warn().Err(err).Str("path", localesPath).Msg("i18n: error walking locale files")
 			return nil
 		}
 		if d.IsDir() {
@@ -57,13 +61,13 @@ func init() {
 		ext := filepath.Ext(path)
 		// use filename (without extension) as language tag for filtering
 		langTag := strings.ToLower(strings.TrimSuffix(filepath.Base(path), ext))
-		
+
 		// check if this language is allowed
 		if !isLanguageAllowed(langTag) {
 			log.Debug().Str("path", path).Str("langTag", langTag).Msg("i18n: skipping language file (not in ALLOWED_LANGUAGE)")
 			return nil
 		}
-		
+
 		// attempt to load flat JSON mapping (legacy v1 format)
 		if ext == ".json" {
 			data, err := os.ReadFile(path)
@@ -129,11 +133,8 @@ type LanguageOption struct {
 	Label string
 }
 
-// GetAvailableLanguages returns the list of available languages based on ALLOWED_LANGUAGE env variable.
-// If ALLOWED_LANGUAGE is empty or undefined, returns all supported languages.
-func GetAvailableLanguages() []LanguageOption {
-	// Full list of supported languages with their display labels
-	allLanguages := []LanguageOption{
+func supportedLanguages() []LanguageOption {
+	return []LanguageOption{
 		{"en", "English"},
 		{"de", "Deutsch"},
 		{"es", "Español"},
@@ -148,25 +149,45 @@ func GetAvailableLanguages() []LanguageOption {
 		{"fa", "فارسی"},
 		{"tr", "Türkçe"},
 	}
-	
-	allowedLangs := os.Getenv("ALLOWED_LANGUAGE")
-	if allowedLangs == "" {
-		return allLanguages // if not set, return all languages
+}
+
+// GetAvailableLanguagesForAllowed returns the languages visible for the provided allow-list.
+// An empty allow-list means all supported languages are available.
+func GetAvailableLanguagesForAllowed(allowed []string) []LanguageOption {
+	allLanguages := supportedLanguages()
+	if len(allowed) == 0 {
+		return allLanguages
 	}
-	
-	// Create a map for quick lookup of allowed languages
-	allowedMap := make(map[string]bool)
-	for _, allowed := range strings.Split(allowedLangs, ",") {
-		allowedMap[strings.TrimSpace(allowed)] = true
+
+	allowedMap := make(map[string]bool, len(allowed))
+	for _, lang := range allowed {
+		allowedMap[strings.TrimSpace(strings.ToLower(lang))] = true
 	}
-	
-	// Filter the languages based on what's allowed
-	var availableLanguages []LanguageOption
+
+	availableLanguages := make([]LanguageOption, 0, len(allLanguages))
 	for _, lang := range allLanguages {
 		if allowedMap[lang.Code] {
 			availableLanguages = append(availableLanguages, lang)
 		}
 	}
-	
+
 	return availableLanguages
+}
+
+// GetAvailableLanguages returns the list of available languages based on ALLOWED_LANGUAGE env variable.
+// If ALLOWED_LANGUAGE is empty or undefined, returns all supported languages.
+func GetAvailableLanguages() []LanguageOption {
+	allowedLangs := os.Getenv("ALLOWED_LANGUAGE")
+	if allowedLangs == "" {
+		return supportedLanguages()
+	}
+
+	allowed := make([]string, 0, len(strings.Split(allowedLangs, ",")))
+	for _, item := range strings.Split(allowedLangs, ",") {
+		if lang := strings.TrimSpace(item); lang != "" {
+			allowed = append(allowed, lang)
+		}
+	}
+
+	return GetAvailableLanguagesForAllowed(allowed)
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -44,6 +43,7 @@ func await(ctx context.Context) {
 	if val == nil {
 		return
 	}
+	req, _ := ctx.Value("request").(*http.Request)
 	code := val.(int)
 
 	reqNum := ctx.Value("reqNum").(uint64)
@@ -55,6 +55,7 @@ func await(ctx context.Context) {
 	sem := buckets[code]
 	if sem.TryAcquire(1) {
 		// means we're the first to use this bucket
+		recordQueueOutcome(req, "acquired")
 		go func() {
 			// we'll release it after the request is answered
 			<-ctx.Done()
@@ -62,19 +63,22 @@ func await(ctx context.Context) {
 		}()
 	} else {
 		// otherwise someone else has already locked it, so we wait
-		acquireTimeout, cancel := context.WithTimeoutCause(ctx, time.Second*6, queueAcquireTimeoutError)
+		acquireTimeout, cancel := context.WithTimeoutCause(ctx, queueAcquireTimeoutDuration(), queueAcquireTimeoutError)
 		defer cancel()
 
 		err := sem.Acquire(acquireTimeout, 1)
 		if err == nil {
 			// got it soon enough
 			sem.Release(1)
+			recordQueueOutcome(req, "redirect")
 			panic(redirectToCloudflareCacheHitMaybe)
 		} else if context.Cause(acquireTimeout) == queueAcquireTimeoutError {
 			// took too long
+			recordQueueOutcome(req, "overload")
 			panic(serverUnderHeavyLoad)
 		} else {
 			// request was canceled
+			recordQueueOutcome(req, "canceled")
 			panic(requestCanceledAbortEverything)
 		}
 	}
@@ -84,6 +88,11 @@ var reqNumSource atomic.Uint64
 
 func queueMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if isMetricsPath(r.URL.Path) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		if r.URL.Path == "/favicon.ico" || strings.HasPrefix(r.URL.Path, "/njump/static/") {
 			next.ServeHTTP(w, r)
 			return
@@ -95,8 +104,11 @@ func queueMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		ticket := int(fnv1a.HashString64(r.URL.Path) % uint64(len(buckets)))
 		ctx := context.WithValue(
 			context.WithValue(
-				r.Context(),
-				"reqNum", reqNum,
+				context.WithValue(
+					r.Context(),
+					"reqNum", reqNum,
+				),
+				"request", r,
 			),
 			"ticket", ticket,
 		)
@@ -127,13 +139,10 @@ func queueMiddleware(next http.HandlerFunc) http.HandlerFunc {
 				return
 
 			default:
+				recordPanic(r, "queue")
 				trace := trackError(r, err)
-				w.WriteHeader(500)
-
-				fmt.Fprintf(w, "%s\n", err)
-				for _, line := range trace {
-					fmt.Fprintf(w, "%s\n", line)
-				}
+				log.Error().Any("panic", err).Str("path", r.URL.Path).Msg("panic recovered in queue middleware")
+				writeInternalServerError(w, r, trace)
 			}
 		}()
 
@@ -142,4 +151,12 @@ func queueMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		// cleanup this
 		inCourse.Delete(reqNum)
 	}
+}
+
+func queueAcquireTimeoutDuration() time.Duration {
+	timeout := time.Duration(s.QueueAcquireTimeoutMs) * time.Millisecond
+	if timeout <= 0 {
+		timeout = 6 * time.Second
+	}
+	return timeout
 }

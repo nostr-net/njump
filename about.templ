@@ -23,7 +23,7 @@ templ aboutTemplate(params AboutParams) {
 							@templ.Raw(t(ctx, "about.what.description"))
 						</p>
 						<p class="my-3 leading-5">
-							@templ.Raw(tWithData(ctx, "about.usage.description", map[string]any{"Domain": s.Domain}))
+							@templ.Raw(tWithData(ctx, "about.usage.description", map[string]any{"Domain": domainFromCtx(ctx)}))
 						</p>
 						<p class="my-3 leading-5">
 							@templ.Raw(t(ctx, "about.examples.description"))
@@ -40,7 +40,7 @@ templ aboutTemplate(params AboutParams) {
 								<div
 									class="flex flex-wrap items-center justify-center sm:flex-nowrap sm:justify-normal"
 								>
-									<div class="mb-1.5 text-xl sm:mb-0">{ s.Domain }/</div>
+									<div class="mb-1.5 text-xl sm:mb-0">{ domainFromCtx(ctx) }/</div>
 									<input
 										name="code"
 										placeholder={ t(ctx, "about.try.placeholder") }
@@ -95,7 +95,7 @@ templ aboutTemplate(params AboutParams) {
 						</p>
 						<h2 class="mt-7 text-2xl text-strongpink">{ t(ctx, "about.nip05.title") }</h2>
 						<p class="my-3 leading-5">
-							@templ.Raw(tWithData(ctx, "about.nip05_description", map[string]any{"Domain": s.Domain}))
+							@templ.Raw(tWithData(ctx, "about.nip05_description", map[string]any{"Domain": domainFromCtx(ctx)}))
 						</p>
 						<p class="my-3 leading-5">
 							{ t(ctx, "about.profile.shows") }
@@ -108,14 +108,14 @@ templ aboutTemplate(params AboutParams) {
 						</p>
 						<h2 class="mt-7 text-2xl text-strongpink">{ t(ctx, "about.relay_views") }</h2>
 						<p class="my-3 leading-5">
-							@templ.Raw(tWithData(ctx, "about.relay_description", map[string]any{"Domain": s.Domain}))
+							@templ.Raw(tWithData(ctx, "about.relay_description", map[string]any{"Domain": domainFromCtx(ctx)}))
 						</p>
 						<p class="my-3 leading-5">
 							@templ.Raw(t(ctx, "about.relay_info"))
 						</p>
 						<h2 class="mt-7 text-2xl text-strongpink">{ t(ctx, "about.website_widgets") }</h2>
 						<div class="my-3 leading-5">
-							@templ.Raw(tWithData(ctx, "about.widgets_full_description", map[string]any{"Domain": s.Domain}))
+							@templ.Raw(tWithData(ctx, "about.widgets_full_description", map[string]any{"Domain": domainFromCtx(ctx)}))
 						</div>
 						<div class="my-3 leading-5">
 							<div class="mt-4 gap-8 sm:flex">

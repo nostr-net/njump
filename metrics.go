@@ -1,0 +1,207 @@
+package main
+
+import (
+	"net"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+)
+
+var (
+	httpRequestsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "njump_http_requests_total",
+			Help: "Total HTTP requests handled by njump.",
+		},
+		[]string{"domain", "path", "status"},
+	)
+
+	httpRequestDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "njump_http_request_duration_seconds",
+			Help:    "End-to-end HTTP request duration.",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"domain", "path", "status"},
+	)
+
+	panicTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "njump_panics_total",
+			Help: "Recovered panic count by recovery point.",
+		},
+		[]string{"domain", "source"},
+	)
+
+	timeoutTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "njump_timeouts_total",
+			Help: "Timed out HTTP requests.",
+		},
+		[]string{"domain", "path"},
+	)
+
+	queueOutcomeTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "njump_queue_outcomes_total",
+			Help: "Queue middleware outcomes.",
+		},
+		[]string{"domain", "outcome"},
+	)
+
+	relayDiscoveryRunsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "njump_relay_discovery_runs_total",
+			Help: "Relay discovery attempts by outcome.",
+		},
+		[]string{"outcome"},
+	)
+
+	relayPoolSize = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "njump_relay_pool_size",
+			Help: "Configured relay count by relay pool.",
+		},
+		[]string{"pool"},
+	)
+
+	buildInfo = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "njump_build_info",
+			Help: "Build metadata for the running njump binary.",
+		},
+		[]string{"build_ts"},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(
+		httpRequestsTotal,
+		httpRequestDuration,
+		panicTotal,
+		timeoutTotal,
+		queueOutcomeTotal,
+		relayDiscoveryRunsTotal,
+		relayPoolSize,
+		buildInfo,
+	)
+}
+
+func recordRelayDiscoveryRun(outcome string) {
+	relayDiscoveryRunsTotal.WithLabelValues(outcome).Inc()
+}
+
+func setRelayPoolSize(pool string, size int) {
+	relayPoolSize.WithLabelValues(pool).Set(float64(size))
+}
+
+func metricsHandler() http.Handler {
+	return promhttp.Handler()
+}
+
+func metricsMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		mw := &metricsResponseWriter{ResponseWriter: w, status: http.StatusOK}
+
+		next.ServeHTTP(mw, r)
+
+		domain := metricsDomainLabel(r)
+		path := metricsPathLabel(r.URL.Path)
+		status := strconv.Itoa(mw.status)
+		httpRequestsTotal.WithLabelValues(domain, path, status).Inc()
+		httpRequestDuration.WithLabelValues(domain, path, status).Observe(time.Since(start).Seconds())
+	}
+}
+
+func setBuildInfoMetric(buildTS string) {
+	if buildTS == "" {
+		buildTS = "dev"
+	}
+	buildInfo.Reset()
+	buildInfo.WithLabelValues(buildTS).Set(1)
+}
+
+func recordPanic(r *http.Request, source string) {
+	panicTotal.WithLabelValues(metricsDomainLabel(r), source).Inc()
+}
+
+func recordTimeout(r *http.Request) {
+	timeoutTotal.WithLabelValues(metricsDomainLabel(r), metricsPathLabel(r.URL.Path)).Inc()
+}
+
+func recordQueueOutcome(r *http.Request, outcome string) {
+	queueOutcomeTotal.WithLabelValues(metricsDomainLabel(r), outcome).Inc()
+}
+
+type metricsResponseWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (mw *metricsResponseWriter) WriteHeader(status int) {
+	mw.status = status
+	mw.ResponseWriter.WriteHeader(status)
+}
+
+func (mw *metricsResponseWriter) Write(b []byte) (int, error) {
+	return mw.ResponseWriter.Write(b)
+}
+
+func metricsPathLabel(path string) string {
+	switch {
+	case path == "/":
+		return "homepage"
+	case path == "/about":
+		return "about"
+	case path == "/metrics":
+		return "metrics"
+	case path == "/robots.txt":
+		return "robots"
+	case strings.HasPrefix(path, "/njump/static/"):
+		return "static"
+	case strings.HasPrefix(path, "/njump/image/"), strings.HasPrefix(path, "/image/"):
+		return "image"
+	case strings.HasPrefix(path, "/njump/proxy/"), strings.HasPrefix(path, "/proxy/"):
+		return "proxy"
+	case strings.HasPrefix(path, "/services/oembed"):
+		return "oembed"
+	case strings.HasPrefix(path, "/embed/"):
+		return "embed"
+	case strings.HasPrefix(path, "/r/"):
+		return "relay"
+	case strings.HasPrefix(path, "/random"):
+		return "random"
+	case strings.HasPrefix(path, "/e/"), strings.HasPrefix(path, "/p/"):
+		return "legacy_redirect"
+	default:
+		return "resource"
+	}
+}
+
+func metricsDomainLabel(r *http.Request) string {
+	if r == nil {
+		return s.Domain
+	}
+	if domain, ok := r.Context().Value("domain").(string); ok && domain != "" {
+		return domain
+	}
+
+	host := r.Host
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	host = strings.TrimPrefix(strings.ToLower(host), "www.")
+	if host == "" {
+		return s.Domain
+	}
+	return host
+}
+
+func isMetricsPath(path string) bool {
+	return path == "/metrics" || strings.HasPrefix(path, "/metrics/")
+}
