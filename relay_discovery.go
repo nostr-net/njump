@@ -109,12 +109,17 @@ func discoverRelayURLs(ctx context.Context) ([]string, string, error) {
 
 	if len(wsRelays) > 0 {
 		log.Info().Str("sources", strings.Join(wsRelays, ",")).Msg("trying relay discovery via NIP-66 websockets")
-		relays, err := discoverRelayURLsViaNip66(ctx, wsRelays)
+		relays, sourceCounts, err := discoverRelayURLsViaNip66All(ctx, wsRelays)
 		if err == nil {
-			log.Info().Int("relays", len(relays)).Str("source", strings.Join(wsRelays, ",")).Msg("relay discovery returned relay candidates")
+			for source, count := range sourceCounts {
+				setRelayDiscoveryCandidateCount(source, count)
+			}
 			return relays, strings.Join(wsRelays, ","), nil
 		}
-		log.Warn().Err(err).Str("sources", strings.Join(wsRelays, ",")).Msg("NIP-66 relay discovery failed")
+		for source, count := range sourceCounts {
+			setRelayDiscoveryCandidateCount(source, count)
+		}
+		log.Warn().Err(err).Str("sources", strings.Join(wsRelays, ",")).Msg("NIP-66 relay discovery failed on all ws sources")
 		if len(httpRelays) == 0 {
 			return nil, strings.Join(wsRelays, ","), err
 		}
@@ -128,6 +133,39 @@ func discoverRelayURLs(ctx context.Context) ([]string, string, error) {
 	}
 	relays, err := discoverRelayURLsViaHTTP(ctx, httpRelays[0])
 	return relays, httpRelays[0], err
+}
+
+func discoverRelayURLsViaNip66All(ctx context.Context, sources []string) ([]string, map[string]int, error) {
+	allRelays := make([]string, 0)
+	allSeen := make(map[string]struct{})
+	sourceCounts := make(map[string]int, len(sources))
+	for _, source := range sources {
+		relays, err := discoverRelayURLsViaNip66(ctx, []string{source})
+		if err != nil {
+			log.Warn().Err(err).Str("source", source).Msg("NIP-66 relay discovery failed on source")
+			sourceCounts[source] = 0
+			continue
+		}
+		if len(relays) == 0 {
+			sourceCounts[source] = 0
+			continue
+		}
+		sourceCounts[source] = len(relays)
+		log.Info().Int("relays", len(relays)).Str("source", source).Msg("relay discovery returned relay candidates")
+		for _, relay := range relays {
+			if _, ok := allSeen[relay]; ok {
+				continue
+			}
+			allSeen[relay] = struct{}{}
+			allRelays = append(allRelays, relay)
+		}
+	}
+
+	if len(allRelays) == 0 {
+		return nil, sourceCounts, fmt.Errorf("no relay discovery relays returned from any websocket source")
+	}
+
+	return allRelays, sourceCounts, nil
 }
 
 func discoverRelayURLsViaNip66(ctx context.Context, sourceRelays []string) ([]string, error) {
