@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"strings"
@@ -211,6 +212,7 @@ func main() {
 	go updateArchives(ctx)
 	go deleteOldCachedEvents(ctx)
 	go outboxHintsFileLoaderSaver(ctx)
+	go pruneIdleRelayConnections(ctx)
 
 	// expose our internal cache as a relay (mostly for debugging purposes)
 	relay := khatru.NewRelay()
@@ -264,6 +266,15 @@ func main() {
 	corsM := func(next http.HandlerFunc) http.HandlerFunc {
 		return corsH.Handler(next).ServeHTTP
 	}
+
+	// pprof endpoint on localhost-only port for heap profiling
+	go func() {
+		pprofMux := http.DefaultServeMux
+		log.Info().Msg("pprof listening at http://127.0.0.1:6060/debug/pprof/")
+		if err := http.ListenAndServe("127.0.0.1:6060", pprofMux); err != nil {
+			log.Error().Err(err).Msg("pprof server error")
+		}
+	}()
 
 	log.Print("listening at http://0.0.0.0:" + s.Port)
 	server := &http.Server{Addr: "0.0.0.0:" + s.Port, Handler: corsM(relay.ServeHTTP)}

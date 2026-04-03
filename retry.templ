@@ -1,7 +1,10 @@
 package main
 
+import "fmt"
+
 type RetryPageParams struct {
 	HeadParams
+	RefreshSeconds int
 }
 
 templ retryTemplate(params RetryPageParams) {
@@ -11,7 +14,11 @@ templ retryTemplate(params RetryPageParams) {
 		<head>
 			<title>Loading...</title>
 			<meta name="robots" content="noindex, nofollow"/>
-			<meta http-equiv="refresh" content="10"/>
+			if params.RefreshSeconds > 0 {
+				<meta http-equiv="refresh" content={ fmt.Sprintf("%d", params.RefreshSeconds) }/>
+			} else {
+				<meta http-equiv="refresh" content="10"/>
+			}
 			@headCommonTemplate(params.HeadParams)
 		</head>
 		<body

@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"iter"
 	"net"
+	"net/http"
 	"net/url"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -16,6 +18,8 @@ import (
 	"fiatjaf.com/nostr/sdk"
 	bolt_kv "fiatjaf.com/nostr/sdk/kvstore/bbolt"
 )
+
+var userAgent = "njump@" + os.Getenv("DOMAIN") + " (https://github.com/fiatjaf/njump)"
 
 type RelayConfig struct {
 	Everything []string `json:"everything"`
@@ -92,6 +96,18 @@ func initSystem() func() {
 	sys.KVStore = kv
 	sys.Store = db
 
+	sys.Pool = nostr.NewPool(nostr.PoolOptions{
+		AuthorKindQueryMiddleware: sys.TrackQueryAttempts,
+		EventMiddleware:           sys.TrackEventHintsAndRelays,
+		DuplicateMiddleware:       sys.TrackEventRelaysD,
+		PenaltyBox:                true,
+		RelayOptions: nostr.RelayOptions{
+			RequestHeader: http.Header{
+				"User-Agent": []string{userAgent},
+			},
+		},
+	})
+
 	sys.RelayListRelays = sdk.NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social", "wss://relay.vertexlab.io", "wss://indexer.coracle.social")
 	sys.FollowListRelays = sdk.NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social", "wss://relay.vertexlab.io", "wss://indexer.coracle.social")
 	sys.MetadataRelays = sdk.NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social", "wss://relay.vertexlab.io", "wss://indexer.coracle.social")
@@ -135,44 +151,58 @@ func applyRelayConfig(cfg RelayConfig) {
 	log.Info().Int("fallback_relays", len(sys.FallbackRelays.URLs)).Int("metadata_relays", len(sys.MetadataRelays.URLs)).Int("justid_relays", len(sys.JustIDRelays.URLs)).Msg("relay pools configured")
 }
 
-func getEvent(ctx context.Context, code string) (*nostr.Event, error) {
-	var pointer nostr.Pointer
+// errCacheMiss is returned by getEvent when the event is not in the local store
+// and a background fetch has been initiated.
+var errCacheMiss = fmt.Errorf("event not in cache, fetching in background")
+
+// parsePointer extracts a nostr.Pointer from a nip19 code or hex ID.
+func parsePointer(code string) (nostr.Pointer, error) {
 	prefix, data, err := nip19.Decode(code)
 	if err == nil {
 		switch prefix {
-		case "nevent":
-			pointer = data.(nostr.EventPointer)
+		case "nevent", "note":
+			return data.(nostr.EventPointer), nil
 		case "naddr":
-			pointer = data.(nostr.EntityPointer)
-		case "note":
-			pointer = nostr.EventPointer{ID: data.(nostr.ID)}
+			return data.(nostr.EntityPointer), nil
 		default:
 			return nil, fmt.Errorf("invalid code '%s'", code)
 		}
-	} else {
-		if id, err := nostr.IDFromHex(code); err == nil {
-			pointer = nostr.EventPointer{ID: id}
-		} else {
-			return nil, fmt.Errorf("failed to decode '%s': %w", code, err)
-		}
+	}
+	if id, err := nostr.IDFromHex(code); err == nil {
+		return nostr.EventPointer{ID: id}, nil
+	}
+	return nil, fmt.Errorf("failed to decode '%s': %w", code, err)
+}
+
+// authorFromPointer extracts the author pubkey from a pointer, if available.
+func authorFromPointer(pointer nostr.Pointer) nostr.PubKey {
+	switch p := pointer.(type) {
+	case nostr.EventPointer:
+		return p.Author
+	case nostr.EntityPointer:
+		return p.PublicKey
+	case nostr.ProfilePointer:
+		return p.PublicKey
+	}
+	return nostr.ZeroPK
+}
+
+func getEvent(ctx context.Context, code string) (*nostr.Event, error) {
+	pointer, err := parsePointer(code)
+	if err != nil {
+		return nil, err
 	}
 
 	// pre-ban before fetching
 	var hasCheckedAuthor bool
 	var hasCheckedID bool
-	var preauthor nostr.PubKey
-	switch p := pointer.(type) {
-	case nostr.EventPointer:
-		if banned, _ := isEventBanned(p.ID); banned {
-			deleteEvent(p.ID)
+	preauthor := authorFromPointer(pointer)
+	if ep, ok := pointer.(nostr.EventPointer); ok {
+		if banned, _ := isEventBanned(ep.ID); banned {
+			deleteEvent(ep.ID)
 			return nil, fmt.Errorf("event is banned")
 		}
 		hasCheckedID = true
-		preauthor = p.Author
-	case nostr.EntityPointer:
-		preauthor = p.PublicKey
-	case nostr.ProfilePointer:
-		preauthor = p.PublicKey
 	}
 	if preauthor != nostr.ZeroPK {
 		if banned, _ := isPubkeyBanned(preauthor); banned {
@@ -224,6 +254,54 @@ func getEvent(ctx context.Context, code string) (*nostr.Event, error) {
 	}
 
 	return event, err
+}
+
+// getEventCacheOnly checks only the local LMDB store without fetching from relays.
+// Returns nil if the event is not cached.
+func getEventCacheOnly(code string) (*nostr.Event, nostr.Pointer, error) {
+	pointer, err := parsePointer(code)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// check ban lists
+	preauthor := authorFromPointer(pointer)
+	if ep, ok := pointer.(nostr.EventPointer); ok {
+		if banned, _ := isEventBanned(ep.ID); banned {
+			return nil, nil, fmt.Errorf("event is banned")
+		}
+	}
+	if preauthor != nostr.ZeroPK {
+		if banned, _ := isPubkeyBanned(preauthor); banned {
+			return nil, nil, fmt.Errorf("pubkey is banned")
+		}
+	}
+
+	for evt := range sys.Store.QueryEvents(pointer.AsFilter(), 1) {
+		return &evt, pointer, nil
+	}
+	return nil, pointer, nil
+}
+
+// backgroundFetchEvent fetches an event from relays in the background and caches it.
+// Also prefetches the author's metadata if the pubkey is known.
+func backgroundFetchEvent(code string, pointer nostr.Pointer) {
+	fetchCtx, fetchCancel := context.WithTimeout(context.Background(), 12*time.Second)
+	defer fetchCancel()
+
+	// prefetch author metadata concurrently if we know the pubkey
+	if author := authorFromPointer(pointer); author != nostr.ZeroPK {
+		go sys.FetchProfileMetadata(context.Background(), author)
+	}
+
+	evt, _, _ := sys.FetchSpecificEvent(fetchCtx, pointer, sdk.FetchSpecificEventParameters{
+		SkipLocalStore:   true,
+		SaveToLocalStore: true,
+	})
+	if evt != nil {
+		// also prefetch the actual author's metadata (in case the pointer had wrong/no author)
+		go sys.FetchProfileMetadata(context.Background(), evt.PubKey)
+	}
 }
 
 func getMetadata(ctx context.Context, event nostr.Event) sdk.ProfileMetadata {
@@ -292,7 +370,7 @@ func authorLastNotes(ctx context.Context, pubkey nostr.PubKey) (lastNotes []Enha
 					sys.Store.SaveEvent(ie.Event)
 
 					// track this only the first time this event is downloaded for the profile page so we keep these fresh
-					sys.TrackEventAccessTime(evt.ID)
+					sys.TrackEventAccessTime(ie.Event.ID)
 				case <-ctx.Done():
 					break out
 				}

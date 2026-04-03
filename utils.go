@@ -63,6 +63,9 @@ var kindNames = map[nostr.Kind]string{
 	42:    "Channel Message",
 	43:    "Channel Hide Message",
 	44:    "Channel Mute User",
+	20:    "Picture",
+	21:    "Video",
+	22:    "Short Video",
 	1063:  "File Metadata",
 	1111:  "Comment",
 	1311:  "Live Chat Message",
@@ -107,6 +110,9 @@ var kindNIPs = map[nostr.Kind]string{
 	42:    "28",
 	43:    "28",
 	44:    "28",
+	20:    "68",
+	21:    "71",
+	22:    "71",
 	1063:  "94",
 	1111:  "22",
 	1311:  "53",
@@ -322,11 +328,14 @@ func renderQuotesAsHTML(ctx context.Context, input string, usingTelegramInstantV
 	for _, submatches := range nostrNoteNeventMatcher.FindAllStringSubmatch(input, len(input)+1) {
 		nip19 := submatches[1]
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*4)
-		defer cancel()
+		// Use Background context so fetches continue (and cache in LMDB) even if
+		// the request timeout fires. This prevents a feedback loop where slow events
+		// never get cached because the fetch is always cancelled.
+		fetchCtx, fetchCancel := context.WithTimeout(context.Background(), time.Second*4)
 		wg.Add(1)
 		go func() {
-			event, _ := getEvent(ctx, nip19)
+			defer fetchCancel()
+			event, _ := getEvent(fetchCtx, nip19)
 			if event != nil {
 				quotedEvent := basicFormatting(submatches[0], false, usingTelegramInstantView, false)
 

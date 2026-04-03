@@ -174,7 +174,7 @@ func grabData(ctx context.Context, code string) (Data, error) {
 	case 30023, 30024:
 		data.templateId = LongForm
 		data.content = event.Content
-	case 20:
+	case 20, 21, 22:
 		data.templateId = Note
 		data.content = event.Content
 	case 6:
@@ -268,27 +268,6 @@ func grabData(ctx context.Context, code string) (Data, error) {
 		}
 
 		if data.Kind9802Metadata.SourceEvent != "" {
-			// Retrieve the title
-			sourceEvent, _ := getEvent(ctx, data.Kind9802Metadata.SourceEvent)
-			if title := sourceEvent.Tags.Find("title"); title != nil {
-				data.Kind9802Metadata.SourceName = title[1]
-			} else {
-				data.Kind9802Metadata.SourceName = i18n.Translate(ctx, "event.source_note_dated", map[string]any{"date": sourceEvent.CreatedAt.Time().Format("January 1, 2006 15:04")})
-			}
-			// Retrieve the author using the event, ignore the `p` tag in the highlight event
-			ctx, cancel := context.WithTimeout(ctx, time.Second*3)
-			defer cancel()
-			data.Kind9802Metadata.Author = sys.FetchProfileMetadata(ctx, sourceEvent.PubKey)
-		}
-		if author := event.Tags.Find("p"); author != nil {
-			ctx, cancel := context.WithTimeout(ctx, time.Second*3)
-			defer cancel()
-			if pk, err := nostr.PubKeyFromHex(author[1]); err == nil {
-				data.Kind9802Metadata.Author = sys.FetchProfileMetadata(ctx, pk)
-			}
-		}
-
-		if data.Kind9802Metadata.SourceEvent != "" {
 			sourceEvent, _ := getEvent(ctx, data.Kind9802Metadata.SourceEvent)
 			if sourceEvent == nil {
 				data.Kind9802Metadata.SourceName = data.Kind9802Metadata.SourceEvent
@@ -296,13 +275,18 @@ func grabData(ctx context.Context, code string) (Data, error) {
 				if title := sourceEvent.Tags.Find("title"); title != nil {
 					data.Kind9802Metadata.SourceName = title[1]
 				} else {
-					data.Kind9802Metadata.SourceName = "Note dated " + sourceEvent.CreatedAt.Time().Format("January 1, 2006 15:04")
+					data.Kind9802Metadata.SourceName = i18n.Translate(ctx, "event.source_note_dated", map[string]any{"date": sourceEvent.CreatedAt.Time().Format("January 1, 2006 15:04")})
 				}
-
-				// retrieve the author using the event, ignore the `p` tag in the highlight event
-				ctx, cancel := context.WithTimeout(ctx, time.Second*3)
-				defer cancel()
-				data.Kind9802Metadata.Author = sys.FetchProfileMetadata(ctx, sourceEvent.PubKey)
+				authorCtx, authorCancel := context.WithTimeout(ctx, time.Second*3)
+				defer authorCancel()
+				data.Kind9802Metadata.Author = sys.FetchProfileMetadata(authorCtx, sourceEvent.PubKey)
+			}
+		}
+		if author := event.Tags.Find("p"); author != nil {
+			authorCtx, authorCancel := context.WithTimeout(ctx, time.Second*3)
+			defer authorCancel()
+			if pk, err := nostr.PubKeyFromHex(author[1]); err == nil {
+				data.Kind9802Metadata.Author = sys.FetchProfileMetadata(authorCtx, pk)
 			}
 		}
 
@@ -348,10 +332,40 @@ func grabData(ctx context.Context, code string) (Data, error) {
 			data.video = data.kind1063Metadata.URL
 			data.videoType = strings.Split(data.kind1063Metadata.M, "/")[1]
 		}
-	} else if event.Kind == 20 {
+	} else if event.Kind == 20 || event.Kind == 21 || event.Kind == 22 {
 		imeta := nip92.ParseTags(event.Tags)
 		if len(imeta) > 0 {
-			data.image = imeta[0].URL
+			for _, entry := range imeta {
+				if entry.URL == "" {
+					continue
+				}
+				if imageExtensionMatcher.MatchString(entry.URL) {
+					if data.image == "" {
+						data.image = entry.URL
+					}
+				} else if videoExtensionMatcher.MatchString(entry.URL) {
+					if data.video == "" {
+						data.video = entry.URL
+						if strings.HasSuffix(data.video, "mp4") {
+							data.videoType = "mp4"
+						} else if strings.HasSuffix(data.video, "mov") {
+							data.videoType = "mov"
+						} else if strings.HasSuffix(data.video, "ogg") || strings.HasSuffix(data.video, "ogv") {
+							data.videoType = "ogg"
+						} else {
+							data.videoType = "webm"
+						}
+					}
+				} else if event.Kind == 21 || event.Kind == 22 {
+					// for video kinds, treat unrecognized URLs as video
+					if data.video == "" {
+						data.video = entry.URL
+						data.videoType = "mp4"
+					}
+				} else if data.image == "" {
+					data.image = entry.URL
+				}
+			}
 
 			content := strings.Builder{}
 			content.Grow(110*len(imeta) + len(data.content))

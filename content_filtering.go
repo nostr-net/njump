@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/sdk"
@@ -26,7 +27,8 @@ func hasProhibitedWordOrTag(event *nostr.Event) bool {
 }
 
 // hasExplicitMedia checks if the event contains explicit media content
-// by examining image/video URLs in the content and checking them against the media alert API
+// by examining image/video URLs in the content and checking them against the media alert API.
+// Checks run in parallel with a bounded total timeout to avoid blocking the request.
 func hasExplicitMedia(ctx context.Context, event *nostr.Event) bool {
 	// extract image and video URLs from content
 	var mediaURLs []string
@@ -47,16 +49,41 @@ func hasExplicitMedia(ctx context.Context, event *nostr.Event) bool {
 		}
 	}
 
-	// check each URL for explicit content
-	for _, mediaURL := range mediaURLs {
-		isExplicit, err := isExplicitContent(ctx, mediaURL)
-		if err != nil {
-			log.Warn().Err(err).Str("url", mediaURL).Msg("failed to check media content")
-			continue
-		}
+	if len(mediaURLs) == 0 {
+		return false
+	}
 
-		if isExplicit {
-			return true
+	// cap total media checking time at 3s to avoid eating the request timeout
+	checkCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	// check all URLs in parallel
+	type result struct {
+		explicit bool
+		err      error
+		url      string
+	}
+	results := make(chan result, len(mediaURLs))
+
+	for _, mediaURL := range mediaURLs {
+		go func(u string) {
+			isExplicit, err := isExplicitContent(checkCtx, u)
+			results <- result{explicit: isExplicit, err: err, url: u}
+		}(mediaURL)
+	}
+
+	for i := 0; i < len(mediaURLs); i++ {
+		select {
+		case r := <-results:
+			if r.err != nil {
+				log.Warn().Err(r.err).Str("url", r.url).Msg("failed to check media content")
+				continue
+			}
+			if r.explicit {
+				return true
+			}
+		case <-checkCtx.Done():
+			return false
 		}
 	}
 

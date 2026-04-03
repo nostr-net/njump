@@ -35,8 +35,12 @@ func outboxHintsFileLoaderSaver(ctx context.Context) {
 			time.Sleep(time.Hour)
 			continue
 		}
+		if err := json.NewEncoder(file).Encode(hdb); err != nil {
+			log.Error().Err(err).Str("path", tmp).Msg("failed to encode outbox hints")
+			file.Close()
+			continue
+		}
 		file.Close()
-		json.NewEncoder(file).Encode(hdb)
 		if err := os.Rename(tmp, s.HintsMemoryDumpPath); err != nil {
 			log.Error().Err(err).Str("from", tmp).Str("to", s.HintsMemoryDumpPath).Msg("failed to move outbox hints file")
 			time.Sleep(time.Hour)

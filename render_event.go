@@ -89,7 +89,6 @@ func renderEvent(w http.ResponseWriter, r *http.Request) {
 		if r.URL.RawQuery != "" {
 			url += "?" + r.URL.RawQuery
 		}
-		time.Sleep(time.Millisecond * 500)
 		http.Redirect(w, r, url, http.StatusFound)
 		return
 	}
@@ -172,6 +171,9 @@ func renderEvent(w http.ResponseWriter, r *http.Request) {
 		seenOnRelays = i18n.Translate(ctx, "event.seen_on", map[string]any{"relays": strings.Join(relays, ", ")})
 	}
 
+	// resolve user references once for both description and titleizedContent
+	contentWithNames := replaceUserReferencesWithNames(ctx, []string{data.event.Content}, "")[0]
+
 	textImageURL := ""
 	description := ""
 	if useTextImage {
@@ -195,8 +197,7 @@ func renderEvent(w http.ResponseWriter, r *http.Request) {
 				description = string(t)
 			}
 		} else {
-			// otherwise replace npub/nprofiles with names and trim length
-			description = replaceUserReferencesWithNames(ctx, []string{data.event.Content}, "")[0]
+			description = contentWithNames
 			if len(description) > 240 {
 				description = description[:240]
 			}
@@ -208,7 +209,7 @@ func renderEvent(w http.ResponseWriter, r *http.Request) {
 		strings.TrimSpace(
 			strings.Replace(
 				strings.Replace(
-					replaceUserReferencesWithNames(ctx, []string{data.event.Content}, "")[0],
+					contentWithNames,
 					"\r\n", " ", -1),
 				"\n", " ", -1,
 			),
@@ -265,7 +266,7 @@ func renderEvent(w http.ResponseWriter, r *http.Request) {
 		data.content = strings.ReplaceAll(data.content, "# "+data.event.subject, "")
 		data.content = mdToHTML(data.content, data.templateId == TelegramInstantView)
 	} else if data.event.Kind == 30818 {
-		data.content = asciidocToHTML(data.content)
+		data.content = djotToHTML(data.content)
 	} else {
 		// first we run basicFormatting, which turns URLs into their appropriate HTML tags
 		data.content = basicFormatting(html.EscapeString(data.content), true, false, false)

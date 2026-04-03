@@ -95,7 +95,8 @@ func timeoutMiddleware(next http.HandlerFunc) http.HandlerFunc {
 					w.Header().Set("Pragma", "no-cache")
 					w.Header().Set("Expires", "0")
 					w.Header().Set("X-Robots-Tag", "noindex, nofollow")
-					w.WriteHeader(http.StatusOK)
+					w.Header().Set("Retry-After", "5")
+					w.WriteHeader(http.StatusServiceUnavailable)
 
 					retryTemplate(RetryPageParams{
 						HeadParams: HeadParams{
