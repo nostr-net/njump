@@ -3,6 +3,7 @@ package main
 import (
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -11,13 +12,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+var metricRegion string
+
 var (
 	httpRequestsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "njump_http_requests_total",
 			Help: "Total HTTP requests handled by njump.",
 		},
-		[]string{"domain", "path", "status"},
+		[]string{"region", "domain", "path", "status"},
 	)
 
 	httpRequestDuration = prometheus.NewHistogramVec(
@@ -26,7 +29,7 @@ var (
 			Help:    "End-to-end HTTP request duration.",
 			Buckets: prometheus.DefBuckets,
 		},
-		[]string{"domain", "path", "status"},
+		[]string{"region", "domain", "path", "status"},
 	)
 
 	panicTotal = prometheus.NewCounterVec(
@@ -34,7 +37,7 @@ var (
 			Name: "njump_panics_total",
 			Help: "Recovered panic count by recovery point.",
 		},
-		[]string{"domain", "source"},
+		[]string{"region", "domain", "source"},
 	)
 
 	timeoutTotal = prometheus.NewCounterVec(
@@ -42,7 +45,7 @@ var (
 			Name: "njump_timeouts_total",
 			Help: "Timed out HTTP requests.",
 		},
-		[]string{"domain", "path"},
+		[]string{"region", "domain", "path"},
 	)
 
 	queueOutcomeTotal = prometheus.NewCounterVec(
@@ -50,7 +53,7 @@ var (
 			Name: "njump_queue_outcomes_total",
 			Help: "Queue middleware outcomes.",
 		},
-		[]string{"domain", "outcome"},
+		[]string{"region", "domain", "outcome"},
 	)
 
 	relayDiscoveryRunsTotal = prometheus.NewCounterVec(
@@ -58,7 +61,7 @@ var (
 			Name: "njump_relay_discovery_runs_total",
 			Help: "Relay discovery attempts by outcome.",
 		},
-		[]string{"outcome"},
+		[]string{"region", "outcome"},
 	)
 
 	relayDiscoveryCandidateCount = prometheus.NewGaugeVec(
@@ -66,7 +69,7 @@ var (
 			Name: "njump_relay_discovery_candidates",
 			Help: "Number of relay candidates discovered from each source.",
 		},
-		[]string{"source"},
+		[]string{"region", "source"},
 	)
 
 	relayPoolSize = prometheus.NewGaugeVec(
@@ -74,7 +77,7 @@ var (
 			Name: "njump_relay_pool_size",
 			Help: "Configured relay count by relay pool.",
 		},
-		[]string{"pool"},
+		[]string{"region", "pool"},
 	)
 
 	buildInfo = prometheus.NewGaugeVec(
@@ -82,11 +85,15 @@ var (
 			Name: "njump_build_info",
 			Help: "Build metadata for the running njump binary.",
 		},
-		[]string{"build_ts"},
+		[]string{"region", "build_ts"},
 	)
 )
 
 func init() {
+	metricRegion = os.Getenv("REGION")
+	if metricRegion == "" {
+		metricRegion = "unknown"
+	}
 	prometheus.MustRegister(
 		httpRequestsTotal,
 		httpRequestDuration,
@@ -101,7 +108,7 @@ func init() {
 }
 
 func recordRelayDiscoveryRun(outcome string) {
-	relayDiscoveryRunsTotal.WithLabelValues(outcome).Inc()
+	relayDiscoveryRunsTotal.WithLabelValues(metricRegion, outcome).Inc()
 }
 
 func setRelayDiscoveryCandidateCount(source string, count int) {
@@ -112,11 +119,11 @@ func setRelayDiscoveryCandidateCount(source string, count int) {
 	if len(label) > 128 {
 		label = label[:128]
 	}
-	relayDiscoveryCandidateCount.WithLabelValues(label).Set(float64(count))
+	relayDiscoveryCandidateCount.WithLabelValues(metricRegion, label).Set(float64(count))
 }
 
 func setRelayPoolSize(pool string, size int) {
-	relayPoolSize.WithLabelValues(pool).Set(float64(size))
+	relayPoolSize.WithLabelValues(metricRegion, pool).Set(float64(size))
 }
 
 func metricsHandler() http.Handler {
@@ -130,11 +137,12 @@ func metricsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 		next.ServeHTTP(mw, r)
 
+		region := metricRegion
 		domain := metricsDomainLabel(r)
 		path := metricsPathLabel(r.URL.Path)
 		status := strconv.Itoa(mw.status)
-		httpRequestsTotal.WithLabelValues(domain, path, status).Inc()
-		httpRequestDuration.WithLabelValues(domain, path, status).Observe(time.Since(start).Seconds())
+		httpRequestsTotal.WithLabelValues(region, domain, path, status).Inc()
+		httpRequestDuration.WithLabelValues(region, domain, path, status).Observe(time.Since(start).Seconds())
 	}
 }
 
@@ -143,19 +151,19 @@ func setBuildInfoMetric(buildTS string) {
 		buildTS = "dev"
 	}
 	buildInfo.Reset()
-	buildInfo.WithLabelValues(buildTS).Set(1)
+	buildInfo.WithLabelValues(metricRegion, buildTS).Set(1)
 }
 
 func recordPanic(r *http.Request, source string) {
-	panicTotal.WithLabelValues(metricsDomainLabel(r), source).Inc()
+	panicTotal.WithLabelValues(metricRegion, metricsDomainLabel(r), source).Inc()
 }
 
 func recordTimeout(r *http.Request) {
-	timeoutTotal.WithLabelValues(metricsDomainLabel(r), metricsPathLabel(r.URL.Path)).Inc()
+	timeoutTotal.WithLabelValues(metricRegion, metricsDomainLabel(r), metricsPathLabel(r.URL.Path)).Inc()
 }
 
 func recordQueueOutcome(r *http.Request, outcome string) {
-	queueOutcomeTotal.WithLabelValues(metricsDomainLabel(r), outcome).Inc()
+	queueOutcomeTotal.WithLabelValues(metricRegion, metricsDomainLabel(r), outcome).Inc()
 }
 
 type metricsResponseWriter struct {

@@ -1,0 +1,4 @@
+Channel-based mutex that can be used in select via C().
+Lock() acquires the mutex, Unlock() releases it.
+TryLock() attempts to acquire without blocking.
+Use `case <-m.C():` in select and call m.Unlock() when done.
