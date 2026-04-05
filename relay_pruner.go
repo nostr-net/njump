@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"runtime/debug"
 	"time"
 
 	"fiatjaf.com/nostr"
@@ -79,7 +78,6 @@ func pruneIdleRelayConnections(ctx context.Context) {
 
 		if pruned > 0 {
 			log.Info().Int("total", total).Int("pruned", pruned).Int("remaining", total-pruned).Msg("pruned idle relay connections")
-			debug.FreeOSMemory()
 		}
 	}
 }
