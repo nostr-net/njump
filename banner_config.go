@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"math/rand"
 	"os"
 )
 
@@ -42,8 +43,9 @@ type Banner struct {
 
 // BannersConfig represents the full banners configuration
 type BannersConfig struct {
-	Global  []Banner              `json:"global,omitempty"`  // Banners shown on all domains
-	Domains map[string][]Banner   `json:"domains,omitempty"` // Domain-specific banners
+	Global  []Banner            `json:"global,omitempty"`  // Banners shown on all domains
+	Domains map[string][]Banner `json:"domains,omitempty"` // Domain-specific banners
+	Rotate  bool                `json:"rotate,omitempty"`  // When true, each position shows one random banner per page view
 }
 
 var bannersConfig BannersConfig
@@ -79,6 +81,12 @@ func GetBannersForDomain(domain string, position BannerPosition) []Banner {
 	}
 
 	log.Info().Str("domain", domain).Str("position", string(position)).Int("count", len(result)).Msg("GetBannersForDomain")
+
+	// Rotation: show one random banner per position per page view
+	if bannersConfig.Rotate && len(result) > 1 {
+		result = []Banner{result[rand.Intn(len(result))]}
+	}
+
 	return result
 }
 

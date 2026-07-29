@@ -42,6 +42,10 @@ templ topTemplate(params HeadParams) {
 		<div class="fixed top-0 left-0 right-0 flex justify-between items-center w-full sm:hidden z-40 p-4 bg-white dark:bg-neutral-900">
 			<!-- Join Nostr Button (Mobile - Left) -->
                         <a href="https://start.nostr.net" class="px-2 py-1 bg-strongpink text-neutral-50 rounded-md text-nowrap">{ t(ctx, "nav.join") }</a>
+			<!-- Top banner (mobile, centered, shrunk to fit) -->
+			<div class="flex-1 flex items-center justify-center overflow-hidden px-2 max-h-8 [&_img]:!h-7 [&_img]:!w-auto [&_svg]:!h-7 [&_svg]:!w-auto [&_span]:!text-xs">
+				@bannersForPosition(domainFromCtx(ctx), BannerPositionTop)
+			</div>
 			<!-- Hamburger menu utton -->
 			<button
 				id="mobile-menu-button"

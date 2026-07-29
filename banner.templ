@@ -1,5 +1,39 @@
 package main
 
+// bannerTrackingJS fires Plausible custom events for banners.
+// It runs once per page (guarded by window.__njumpBanners) and:
+//   - fires "Banner View" for every banner that is actually displayed
+//     (hidden responsive duplicates, e.g. mobile/desktop copies, are skipped)
+//   - fires "Banner Click" when a banner link is clicked
+// Each event carries props: { id: <banner id>, position: <top|left|right|bottom> }
+const bannerTrackingJS = `(function(){
+  if (window.__njumpBanners) return;
+  window.__njumpBanners = true;
+  function visible(el){ try { return window.getComputedStyle(el).display !== 'none'; } catch(e){ return true; } }
+  function fire(name, props){ if (window.plausible) { try { window.plausible(name, { props: props }); } catch(e){} } }
+  function init(){
+    document.querySelectorAll('.banner-container').forEach(function(c){
+      if (!visible(c)) return;
+      var pos = c.getAttribute('data-position') || '';
+      c.querySelectorAll('[data-banner-id]').forEach(function(b){
+        fire('Banner View', { id: b.getAttribute('data-banner-id') || '', position: pos });
+      });
+    });
+    document.querySelectorAll('.banner-container [data-banner-id] a').forEach(function(a){
+      if (a.getAttribute('data-njump-tracked')) return;
+      a.setAttribute('data-njump-tracked', '1');
+      a.addEventListener('click', function(){
+        var b = a.closest('[data-banner-id]');
+        var c = a.closest('.banner-container');
+        if (!b || !c) return;
+        fire('Banner Click', { id: b.getAttribute('data-banner-id') || '', position: c.getAttribute('data-position') || '' });
+      });
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();`
+
 // BannerItemParams holds parameters for rendering a single banner
 type BannerItemParams struct {
 	ID      string
@@ -22,12 +56,12 @@ type BannerContainerParams struct {
 // renderBannerItem renders a single banner based on its type
 templ bannerItemTemplate(params BannerItemParams) {
 	if params.Type == "html" && params.HTML != "" {
-		<div id={ "banner-" + params.ID } class={ "njump-banner " + params.Class }>
+		<div id={ "banner-" + params.ID } data-banner-id={ params.ID } class={ "njump-banner " + params.Class }>
 			@templ.Raw(params.HTML)
 		</div>
 	}
 	if params.Type == "link" && params.URL != "" {
-		<div id={ "banner-" + params.ID } class={ "njump-banner " + params.Class }>
+		<div id={ "banner-" + params.ID } data-banner-id={ params.ID } class={ "njump-banner " + params.Class }>
 			<a
 				href={ templ.URL(params.URL) }
 				if params.NewTab {
@@ -46,13 +80,13 @@ templ bannerItemTemplate(params BannerItemParams) {
 		</div>
 	}
 	if params.Type == "text" && params.Text != "" {
-		<div id={ "banner-" + params.ID } class={ "njump-banner " + params.Class }>
+		<div id={ "banner-" + params.ID } data-banner-id={ params.ID } class={ "njump-banner " + params.Class }>
 			{ params.Text }
 		</div>
 	}
 	if params.Type == "image" && params.Src != "" {
 		if params.URL != "" {
-			<div id={ "banner-" + params.ID } class={ "njump-banner " + params.Class }>
+			<div id={ "banner-" + params.ID } data-banner-id={ params.ID } class={ "njump-banner " + params.Class }>
 				<a
 					href={ templ.URL(params.URL) }
 					if params.NewTab {
@@ -65,7 +99,7 @@ templ bannerItemTemplate(params BannerItemParams) {
 				</a>
 			</div>
 		} else {
-			<div id={ "banner-" + params.ID } class={ "njump-banner " + params.Class }>
+			<div id={ "banner-" + params.ID } data-banner-id={ params.ID } class={ "njump-banner " + params.Class }>
 				<img src={ templ.URL(params.Src) } alt={ params.AltText } class="h-auto max-w-full"/>
 			</div>
 		}
@@ -109,6 +143,8 @@ templ bannerContainerTemplate(params BannerContainerParams) {
 				}
 			</div>
 		}
+		// Plausible tracking (idempotent: runs once per page)
+		@templ.Raw("<script>" + bannerTrackingJS + "</script>")
 	}
 }
 
