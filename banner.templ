@@ -1,0 +1,118 @@
+package main
+
+// BannerItemParams holds parameters for rendering a single banner
+type BannerItemParams struct {
+	ID      string
+	Type    string
+	Text    string
+	HTML    string
+	URL     string
+	Src     string
+	Class   string
+	AltText string
+	NewTab  bool
+}
+
+// BannerContainerParams holds all banners for a specific position
+type BannerContainerParams struct {
+	Position string
+	Banners  []BannerItemParams
+}
+
+// renderBannerItem renders a single banner based on its type
+templ bannerItemTemplate(params BannerItemParams) {
+	if params.Type == "html" && params.HTML != "" {
+		<div id={ "banner-" + params.ID } class={ "njump-banner " + params.Class }>
+			@templ.Raw(params.HTML)
+		</div>
+	}
+	if params.Type == "link" && params.URL != "" {
+		<div id={ "banner-" + params.ID } class={ "njump-banner " + params.Class }>
+			<a
+				href={ templ.URL(params.URL) }
+				if params.NewTab {
+					target="_blank"
+					rel="noopener noreferrer"
+				}
+				class="block hover:opacity-80 transition-opacity"
+			>
+				if params.Text != "" {
+					<span>{ params.Text }</span>
+				}
+				if params.AltText != "" {
+					<span class="sr-only">{ params.AltText }</span>
+				}
+			</a>
+		</div>
+	}
+	if params.Type == "text" && params.Text != "" {
+		<div id={ "banner-" + params.ID } class={ "njump-banner " + params.Class }>
+			{ params.Text }
+		</div>
+	}
+	if params.Type == "image" && params.Src != "" {
+		if params.URL != "" {
+			<div id={ "banner-" + params.ID } class={ "njump-banner " + params.Class }>
+				<a
+					href={ templ.URL(params.URL) }
+					if params.NewTab {
+						target="_blank"
+						rel="noopener noreferrer"
+					}
+					class="block hover:opacity-80 transition-opacity"
+				>
+					<img src={ templ.URL(params.Src) } alt={ params.AltText } class="h-auto max-w-full"/>
+				</a>
+			</div>
+		} else {
+			<div id={ "banner-" + params.ID } class={ "njump-banner " + params.Class }>
+				<img src={ templ.URL(params.Src) } alt={ params.AltText } class="h-auto max-w-full"/>
+			</div>
+		}
+	}
+}
+
+// bannerContainerTemplate renders all banners for a position.
+// Left and right positions are fixed vertical sidebars at the viewport edges
+// with vertical-running text (writing-mode) so they read like a long vertical strip.
+templ bannerContainerTemplate(params BannerContainerParams) {
+	if len(params.Banners) > 0 {
+		if params.Position == "left" {
+			<aside
+				class="banner-container banner-container--left fixed left-0 top-24 z-40 flex max-h-[calc(100vh-8rem)] flex-col items-center justify-start gap-2 px-1 py-4 print:hidden lg:flex"
+				data-position="left"
+			>
+				for _, banner := range params.Banners {
+					<div class="[writing-mode:vertical-rl] rotate-180">
+						@bannerItemTemplate(banner)
+					</div>
+				}
+			</aside>
+		} else if params.Position == "right" {
+			<aside
+				class="banner-container banner-container--right fixed right-0 top-24 z-40 flex max-h-[calc(100vh-8rem)] flex-col items-center justify-start gap-2 px-1 py-4 print:hidden lg:flex"
+				data-position="right"
+			>
+				for _, banner := range params.Banners {
+					<div class="[writing-mode:vertical-rl]">
+						@bannerItemTemplate(banner)
+					</div>
+				}
+			</aside>
+		} else {
+			<div
+				class={ "banner-container banner-container--" + params.Position }
+				data-position={ params.Position }
+			>
+				for _, banner := range params.Banners {
+					@bannerItemTemplate(banner)
+				}
+			</div>
+		}
+	}
+}
+
+// Template for rendering banners for a domain and position
+templ bannersForPosition(domain string, position BannerPosition) {
+	@bannerContainerTemplate(GetBannerParams(domain, position))
+}

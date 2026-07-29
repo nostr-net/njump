@@ -13,14 +13,18 @@ templ eventPageTemplate(
 	details DetailsParams,
 	event EnhancedEvent,
 ) {
-        <html class="theme--default font-light print:text-base" lang={ head.Lang } if isRTL(ctx) { dir="rtl" }>
-                <meta charset="UTF-8"/>
+	<html class="theme--default font-light print:text-base" lang={ head.Lang } if isRTL(ctx) { dir="rtl" }>
+		<meta charset="UTF-8"/>
 		<head>
 			<title>{ title }</title>
 			@openGraphTemplate(og)
 			@headCommonTemplate(head)
 		</head>
 		<body class="mb-16 bg-white text-gray-600 dark:bg-neutral-900 dark:text-neutral-50 print:text-black">
+			// Left vertical banner (fixed, far-left edge)
+			@bannersForPosition(head.Domain, BannerPositionLeft)
+			// Right vertical banner (fixed, far-right edge, right of client list)
+			@bannersForPosition(head.Domain, BannerPositionRight)
 			@topTemplate(head)
 			<div class="mx-auto px-4 sm:flex sm:items-center sm:justify-center sm:px-0">
 				<div

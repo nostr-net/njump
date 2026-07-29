@@ -1,0 +1,36 @@
+{
+  "global": [
+    {
+      "id": "image-banner",
+      "type": "image",
+      "position": "top",
+      "src": "https://example.com/logo.png",
+      "url": "https://example.com",
+      "altText": "Example",
+      "newTab": true,
+      "class": "inline-block"
+    },
+    {
+      "id": "bottom-link",
+      "type": "link",
+      "position": "bottom",
+      "text": "Visit our site",
+      "url": "https://example.com",
+      "newTab": true,
+      "class": "block bg-neutral-900 text-white px-4 py-3 rounded-lg text-center font-semibold mb-4"
+    }
+  ],
+  "domains": {
+    "nostr.ae": [
+      {
+        "id": "nostrae-right",
+        "type": "link",
+        "position": "right",
+        "text": "Join our Arabic-speaking community",
+        "url": "https://nostr.com/naddr1qvzqqqr4gcjzqryghxun7p29el3f0wuq6qcyq5pswguv5t8dm9y3cmpwaehkj8w",
+        "class": "bg-garnet text-neutral-50 px-2 py-3 rounded text-center text-xs font-semibold mb-2",
+        "newTab": true
+      }
+    ]
+  }
+}

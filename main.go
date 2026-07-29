@@ -39,6 +39,7 @@ type Settings struct {
 	TailwindDebug            bool   `envconfig:"TAILWIND_DEBUG"`
 	RelayConfigPath          string `envconfig:"RELAY_CONFIG_PATH"`
 	ClientsConfigPath        string `envconfig:"CLIENTS_CONFIG_PATH"`
+	BannersConfigPath        string `envconfig:"BANNERS_CONFIG_PATH"`
 	EnableRelayDiscovery     bool   `envconfig:"ENABLE_RELAY_DISCOVERY" default:"false"`
 	RelayDiscoveryURL        string `envconfig:"RELAY_DISCOVERY_URL" default:"wss://relay.nostr.watch,wss://relaypag.es,wss://monitorlizard.nostr1.com"`
 	RelayDiscoveryMaxRelays  int    `envconfig:"RELAY_DISCOVERY_MAX_RELAYS" default:"24"`
@@ -155,6 +156,14 @@ func main() {
 	if s.EnableRelayDiscovery {
 		if err := refreshRelayPoolsFromNostrWatch(context.Background()); err != nil {
 			log.Warn().Err(err).Msg("initial relay discovery refresh failed")
+		}
+	}
+
+	if s.BannersConfigPath != "" {
+		if err := LoadBannersConfig(s.BannersConfigPath); err != nil {
+			log.Warn().Err(err).Msg("failed to load banners config")
+		} else {
+			log.Info().Str("path", s.BannersConfigPath).Msg("banners config loaded")
 		}
 	}
 

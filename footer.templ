@@ -1,6 +1,10 @@
 package main
 
 templ footerTemplate() {
+	<!-- Bottom banner (above footer) -->
+	<div class="mx-auto max-w-screen-lg px-4 print:hidden">
+		@bannersForPosition(domainFromCtx(ctx), BannerPositionBottom)
+	</div>
 	<div
 		class="fixed -inset-x-24 inset-y-64 -z-10 h-full w-[200%] -rotate-12 overflow-hidden bg-gray-50 dark:bg-neutral-950 print:hidden"
 	></div>
