@@ -25,7 +25,7 @@ templ eventPageTemplate(
 			@bannersForPosition(head.Domain, BannerPositionLeft)
 			// Right vertical banner (fixed, far-right edge, right of client list)
 			@bannersForPosition(head.Domain, BannerPositionRight)
-			@topTemplate(head)
+			@topTemplate(withIsEvent(head))
 			<div class="mx-auto px-4 sm:flex sm:items-center sm:justify-center sm:px-0">
 				<div
 					itemscope

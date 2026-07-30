@@ -62,14 +62,22 @@ type DetailsParams struct {
 }
 
 type HeadParams struct {
-	IsHome      bool
-	IsAbout     bool
-	IsProfile   bool
-	Lang        string
+	IsHome    bool
+	IsAbout   bool
+	IsProfile bool
+	IsEvent   bool // true on event pages (where the top banner should appear)
+	Lang      string
 	NaddrNaked  string
 	NeventNaked string
 	Oembed      string
 	Domain      string
+}
+
+// withIsEvent returns a copy of h with IsEvent set to true. Used by event page
+// templates so the top banner only renders on event pages (not the homepage, etc.).
+func withIsEvent(h HeadParams) HeadParams {
+	h.IsEvent = true
+	return h
 }
 
 type BaseEventPageParams struct {
