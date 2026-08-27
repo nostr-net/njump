@@ -1,49 +1,50 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"runtime/debug"
-	"sync"
 	"time"
 
 	"github.com/fiatjaf/njump/i18n"
 )
 
-// timeoutResponseWriter wraps http.ResponseWriter to prevent writes after timeout
+// timeoutResponseWriter keeps a handler's response private until it completes.
+// A timed-out handler may keep running briefly while it observes its cancelled
+// context, so it must never retain access to the real ResponseWriter.
 type timeoutResponseWriter struct {
-	http.ResponseWriter
-	mu          sync.Mutex
-	timedOut    bool
+	header      http.Header
+	body        bytes.Buffer
+	status      int
 	wroteHeader bool
 }
 
 func (tw *timeoutResponseWriter) WriteHeader(code int) {
-	tw.mu.Lock()
-	defer tw.mu.Unlock()
-	if tw.timedOut || tw.wroteHeader {
+	if tw.wroteHeader {
 		return
 	}
 	tw.wroteHeader = true
-	tw.ResponseWriter.WriteHeader(code)
+	tw.status = code
 }
 
 func (tw *timeoutResponseWriter) Write(b []byte) (int, error) {
-	tw.mu.Lock()
-	defer tw.mu.Unlock()
-	if tw.timedOut {
-		return 0, http.ErrHandlerTimeout
-	}
 	if !tw.wroteHeader {
-		tw.wroteHeader = true
+		tw.WriteHeader(http.StatusOK)
 	}
-	return tw.ResponseWriter.Write(b)
+	return tw.body.Write(b)
 }
 
-func (tw *timeoutResponseWriter) markTimedOut() {
-	tw.mu.Lock()
-	defer tw.mu.Unlock()
-	tw.timedOut = true
+func (tw *timeoutResponseWriter) Header() http.Header {
+	return tw.header
+}
+
+func (tw *timeoutResponseWriter) writeTo(w http.ResponseWriter) {
+	for key, values := range tw.header {
+		w.Header()[key] = append([]string(nil), values...)
+	}
+	w.WriteHeader(tw.status)
+	_, _ = w.Write(tw.body.Bytes())
 }
 
 func timeoutMiddleware(next http.HandlerFunc) http.HandlerFunc {
@@ -56,7 +57,7 @@ func timeoutMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), requestTimeoutDuration())
 		defer cancel()
 
-		tw := &timeoutResponseWriter{ResponseWriter: w}
+		tw := &timeoutResponseWriter{header: make(http.Header), status: http.StatusOK}
 		done := make(chan struct{})
 		go func() {
 			defer close(done)
@@ -78,33 +79,24 @@ func timeoutMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 		select {
 		case <-done:
-			// Request completed successfully
+			tw.writeTo(w)
 			return
 		case <-ctx.Done():
-			// Timeout reached
-			tw.markTimedOut()
 			recordTimeout(r)
 			if ctx.Err() == context.DeadlineExceeded {
-				// Only write retry page if handler hasn't written anything yet
-				tw.mu.Lock()
-				hasWritten := tw.wroteHeader
-				tw.mu.Unlock()
+				w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+				w.Header().Set("Pragma", "no-cache")
+				w.Header().Set("Expires", "0")
+				w.Header().Set("X-Robots-Tag", "noindex, nofollow")
+				w.Header().Set("Retry-After", "5")
+				w.WriteHeader(http.StatusServiceUnavailable)
 
-				if !hasWritten {
-					w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-					w.Header().Set("Pragma", "no-cache")
-					w.Header().Set("Expires", "0")
-					w.Header().Set("X-Robots-Tag", "noindex, nofollow")
-					w.Header().Set("Retry-After", "5")
-					w.WriteHeader(http.StatusServiceUnavailable)
-
-					retryTemplate(RetryPageParams{
-						HeadParams: HeadParams{
-							Lang:   i18n.LanguageFromContext(r.Context()),
-							Domain: domainFromCtx(r.Context()),
-						},
-					}).Render(r.Context(), w)
-				}
+				retryTemplate(RetryPageParams{
+					HeadParams: HeadParams{
+						Lang:   i18n.LanguageFromContext(r.Context()),
+						Domain: domainFromCtx(r.Context()),
+					},
+				}).Render(r.Context(), w)
 			}
 		}
 	}

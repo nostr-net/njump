@@ -26,15 +26,12 @@ func recoveryMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 func writeInternalServerError(w http.ResponseWriter, r *http.Request, trace []string) {
 	if rw, ok := w.(*timeoutResponseWriter); ok {
-		rw.mu.Lock()
-		defer rw.mu.Unlock()
-		if rw.timedOut || rw.wroteHeader {
+		if rw.wroteHeader {
 			return
 		}
-		rw.wroteHeader = true
-		rw.ResponseWriter.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-		rw.ResponseWriter.WriteHeader(http.StatusInternalServerError)
-		_, _ = rw.ResponseWriter.Write([]byte("internal server error"))
+		rw.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		rw.WriteHeader(http.StatusInternalServerError)
+		_, _ = rw.Write([]byte("internal server error"))
 		return
 	}
 
