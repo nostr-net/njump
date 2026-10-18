@@ -406,7 +406,7 @@ func relayLastNotes(ctx context.Context, hostname string, limit int) iter.Seq[no
 
 			limit = max(limit, 50)
 
-			if relay, err := sys.Pool.EnsureRelay(hostname); err == nil {
+			if relay, err := sys.Pool.EnsureRelay(ctx, hostname); err == nil {
 				for evt := range relay.QueryEvents(nostr.Filter{
 					Kinds: []nostr.Kind{1},
 					Limit: limit,

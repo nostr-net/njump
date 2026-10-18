@@ -1,9 +1,9 @@
 package nostr
 
 import (
+	"context"
 	"strconv"
 	"strings"
-	"sync"
 	"unsafe"
 
 	jsoniter "github.com/json-iterator/go"
@@ -14,7 +14,7 @@ import (
 const MAX_LOCKS = 50
 
 var (
-	namedMutexPool = make([]sync.Mutex, MAX_LOCKS)
+	namedMutexPool = make([]chan struct{}, MAX_LOCKS)
 	json           = jsoniter.ConfigFastest
 )
 
@@ -22,11 +22,24 @@ var (
 //go:linkname memhash runtime.memhash
 func memhash(p unsafe.Pointer, h, s uintptr) uintptr
 
-func namedLock(name string) (unlock func()) {
+func init() {
+	for i := range namedMutexPool {
+		namedMutexPool[i] = make(chan struct{}, 1)
+	}
+}
+
+// namedLock acquires the lock bucket for name. If ctx is done before the lock
+// is acquired it returns ctx.Err() and a nil unlock function.
+func namedLock(ctx context.Context, name string) (func(), error) {
 	sptr := unsafe.StringData(name)
 	idx := uint64(memhash(unsafe.Pointer(sptr), 0, uintptr(len(name)))) % MAX_LOCKS
-	namedMutexPool[idx].Lock()
-	return namedMutexPool[idx].Unlock
+	ch := namedMutexPool[idx]
+	select {
+	case ch <- struct{}{}:
+		return func() { <-ch }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 func similar[E constraints.Ordered](as, bs []E) bool {

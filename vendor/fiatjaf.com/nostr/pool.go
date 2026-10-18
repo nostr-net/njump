@@ -130,23 +130,29 @@ func (pool *Pool) startPenaltyBox() {
 
 // EnsureRelay ensures that a relay connection exists and is active.
 // If the relay is not connected, it attempts to connect.
-func (pool *Pool) EnsureRelay(url string) (*Relay, error) {
+// The ctx only governs the wait for the per-relay lock: callers whose
+// request was canceled give up instead of queuing behind an in-flight dial.
+func (pool *Pool) EnsureRelay(ctx context.Context, url string) (*Relay, error) {
 	nm := NormalizeURL(url)
-	defer namedLock(nm)()
+	unlock, err := namedLock(ctx, nm)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 
 	relay, ok := pool.Relays.Load(nm)
-	if ok && relay == nil {
-		if pool.penaltyBox != nil {
-			pool.penaltyBoxMu.Lock()
-			defer pool.penaltyBoxMu.Unlock()
-			v, _ := pool.penaltyBox[nm]
-			if v[1] > 0 {
-				return nil, fmt.Errorf("in penalty box, %fs remaining", v[1])
-			}
-		}
-	} else if ok && relay.IsConnected() {
+	if ok && relay != nil && relay.IsConnected() {
 		// already connected, unlock and return
 		return relay, nil
+	}
+
+	if pool.penaltyBox != nil {
+		pool.penaltyBoxMu.Lock()
+		v, _ := pool.penaltyBox[nm]
+		pool.penaltyBoxMu.Unlock()
+		if v[1] > 0 {
+			return nil, fmt.Errorf("in penalty box, %fs remaining", v[1])
+		}
 	}
 
 	relay = NewRelay(pool.Context, url, pool.relayOptions)
@@ -156,9 +162,12 @@ func (pool *Pool) EnsureRelay(url string) (*Relay, error) {
 		relay.Close()
 		if pool.penaltyBox != nil {
 			pool.penaltyBoxMu.Lock()
-			defer pool.penaltyBoxMu.Unlock()
 			v, _ := pool.penaltyBox[nm]
 			pool.penaltyBox[nm] = [2]float64{v[0] + 1, 30.0 + math.Pow(2, v[0]+1)}
+			pool.penaltyBoxMu.Unlock()
+			// store a nil marker so the penalty box check above applies to
+			// the next attempt; the pruner removes these entries eventually
+			pool.Relays.Store(nm, nil)
 		}
 		return nil, fmt.Errorf("failed to connect: %w", err)
 	}
@@ -199,7 +208,7 @@ func (pool *Pool) PublishMany(ctx context.Context, urls []string, evt Event) cha
 			go func() {
 				defer wg.Done()
 
-				relay, err := pool.EnsureRelay(url)
+				relay, err := pool.EnsureRelay(ctx, url)
 				if err != nil {
 					ch <- PublishResult{err, url, nil}
 					return
@@ -373,7 +382,7 @@ func (pool *Pool) FetchManyReplaceable(
 				}
 			}
 
-			relay, err := pool.EnsureRelay(nm)
+			relay, err := pool.EnsureRelay(ctx, nm)
 			if err != nil {
 				debugLogf("[pool] error connecting to %s with %v: %s", nm, filter, err)
 				return
@@ -512,7 +521,7 @@ func (pool *Pool) subMany(
 					}
 				}
 
-				relay, err := pool.EnsureRelay(nm)
+				relay, err := pool.EnsureRelay(ctx, nm)
 				if err != nil {
 					// otherwise (if we were connected and got disconnected) keep trying to reconnect
 					debugLogf("[pool] connection to %s failed, will retry\n", nm)
@@ -656,7 +665,7 @@ func (pool *Pool) subManyEose(
 				}
 			}
 
-			relay, err := pool.EnsureRelay(nm)
+			relay, err := pool.EnsureRelay(ctx, nm)
 			if err != nil {
 				debugLogf("[pool] error connecting to %s with %v: %s", nm, filter, err)
 				return
@@ -744,7 +753,7 @@ func (pool *Pool) CountMany(
 	for _, url := range urls {
 		go func(nm string) {
 			defer wg.Done()
-			relay, err := pool.EnsureRelay(url)
+			relay, err := pool.EnsureRelay(ctx, url)
 			if err != nil {
 				return
 			}
