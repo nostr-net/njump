@@ -111,6 +111,16 @@ For a shared multi-domain deployment, see [`ops/njump.service.sample`](./ops/nju
 
 If central Prometheus cannot reach the local `njump` ports directly, see [`ops/nginx-metrics.conf.sample`](./ops/nginx-metrics.conf.sample) for an nginx reverse-proxy that exposes the metrics on a single IP-based port with source-IP allowlisting.
 
+### Analytics
+
+The shared head in `common.templ` loads Plausible's outbound-links script with
+SHA-384 subresource integrity and `crossorigin="anonymous"`. When updating the
+script, verify the downloaded bytes and change both the integrity hash and the
+`v` query parameter so browsers do not reuse an older immutable cached response.
+Rebuild with `make build` to regenerate the template and embed the change.
+The analytics server must also return an `Access-Control-Allow-Origin` header
+allowing the gateway origin (or `*`); a matching hash alone does not satisfy CORS.
+
 ## Translations
 
 Translation files are in `locales/` and managed with [go-i18n](https://github.com/nicksnyder/go-i18n). A helper script is provided at `scripts/update_translations.sh`.
