@@ -120,6 +120,8 @@ script, verify the downloaded bytes and change both the integrity hash and the
 Rebuild with `make build` to regenerate the template and embed the change.
 The analytics server must also return an `Access-Control-Allow-Origin` header
 allowing the gateway origin (or `*`); a matching hash alone does not satisfy CORS.
+Tracking uses the request's normalized gateway domain through `HeadParams.Domain`,
+including on the homepage; `www.` aliases report to the same site as the bare domain.
 
 ## Translations
 

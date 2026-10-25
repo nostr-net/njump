@@ -109,6 +109,38 @@ func TestDomainRoutingFromHostHeader(t *testing.T) {
 	}
 }
 
+func TestHomepageAnalyticsDomain(t *testing.T) {
+	for _, tc := range []struct {
+		host   string
+		domain string
+	}{
+		{"nostr.at", "nostr.at"},
+		{"www.nostr.eu", "nostr.eu"},
+		{"nostr.ae:443", "nostr.ae"},
+	} {
+		t.Run(tc.host, func(t *testing.T) {
+			r := httptest.NewRequest("GET", "https://"+tc.host+"/", nil)
+			w := httptest.NewRecorder()
+			languageMiddleware(renderHomepage)(w, r)
+
+			if w.Code != 200 {
+				t.Fatalf("expected homepage status 200, got %d", w.Code)
+			}
+			doc, err := goquery.NewDocumentFromReader(w.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			scripts := doc.Find(`script[data-domain]`)
+			if scripts.Length() != 1 {
+				t.Fatalf("expected one analytics script, got %d", scripts.Length())
+			}
+			if got, _ := scripts.Attr("data-domain"); got != tc.domain {
+				t.Fatalf("analytics domain: want %q, got %q", tc.domain, got)
+			}
+		})
+	}
+}
+
 func parseHead(resp io.Reader, og *OpengraphFields) error {
 	doc, err := goquery.NewDocumentFromReader(resp)
 	if err != nil {
